@@ -49,5 +49,15 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.route("/health")
+def health():
+    from flask import jsonify
+    try:
+        from db import Customer
+        count = Customer.query.count()
+        return jsonify({"status": "ok", "customers": count}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "detail": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
