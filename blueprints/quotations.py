@@ -37,7 +37,7 @@ def list_quotes():
 def new_quote():
     if request.method == "POST":
         f = request.form
-        company = f.get("company", "")
+        company = f.get("company_title", "")
         tax_id = next((c["tax_id"] for c in COMPANY_OPTIONS if c["name"] == company), "")
 
         items_data = []
@@ -56,7 +56,7 @@ def new_quote():
 
         data = {
             "報價單編號":  next_quote_number(),
-            "報價日期":   f.get("date", datetime.date.today().isoformat()),
+            "報價日期":   f.get("quote_date", datetime.date.today().isoformat()),
             "公司抬頭":   company,
             "統編":      tax_id,
             "客戶姓名":   f.get("customer_name", ""),
@@ -80,7 +80,7 @@ def new_quote():
             "稅額(5%)":  tax,
             "含稅總金額":  total,
             "預計安裝日期": f.get("install_date", ""),
-            "備註":      f.get("note", ""),
+            "備註":      f.get("notes", ""),
             "狀態":      "草稿",
         }
         append_row("報價單記錄", data)
