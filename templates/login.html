@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}登入 - 泰安冷氣管理系統{% endblock %}
+
+{% block content %}
+<div class="vh-100 d-flex align-items-center justify-content-center">
+    <div class="card shadow-lg" style="width: 100%; max-width: 450px;">
+        <div class="card-body p-5">
+            <!-- Header -->
+            <div class="text-center mb-5">
+                <h1 class="h2 fw-bold text-dark mb-2">泰安冷氣空調</h1>
+                <p class="text-muted">管理系統</p>
+            </div>
+
+            <!-- Login Form -->
+            <form method="POST">
+                <!-- Username -->
+                <div class="mb-4">
+                    <label for="username" class="form-label fw-bold">帳號</label>
+                    <input type="text" class="form-control form-control-lg" id="username" name="username" placeholder="輸入帳號" required autofocus>
+                </div>
+
+                <!-- Password -->
+                <div class="mb-4">
+                    <label for="password" class="form-label fw-bold">密碼</label>
+                    <input type="password" class="form-control form-control-lg" id="password" name="password" placeholder="輸入密碼" required>
+                </div>
+
+                <!-- Login Button -->
+                <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold">登入</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

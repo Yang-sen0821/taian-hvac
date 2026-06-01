@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}儀表板 - 泰安冷氣管理系統{% endblock %}
+
+{% block content %}
+<!-- Welcome Title -->
+<div class="mb-5">
+    <h1 class="h3 fw-bold">歡迎，{{ session.user.name }}</h1>
+    <p class="text-muted">泰安冷氣管理系統</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-5">
+    <!-- Customers Count Card -->
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div>
+                        <p class="text-muted mb-2 small">客戶總數</p>
+                        <h2 class="h3 fw-bold text-primary mb-0">{{ customer_count | default(0) }}</h2>
+                    </div>
+                    <div class="ms-auto">
+                        <i class="bi bi-people-fill fs-2 text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AC Units Count Card -->
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div>
+                        <p class="text-muted mb-2 small">冷氣品項</p>
+                        <h2 class="h3 fw-bold text-warning mb-0">{{ ac_count | default(0) }}</h2>
+                    </div>
+                    <div class="ms-auto">
+                        <i class="bi bi-snow fs-2 text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gifts Count Card -->
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div>
+                        <p class="text-muted mb-2 small">贈品品項</p>
+                        <h2 class="h3 fw-bold text-success mb-0">{{ gift_count | default(0) }}</h2>
+                    </div>
+                    <div class="ms-auto">
+                        <i class="bi bi-gift-fill fs-2 text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quotations Count Card -->
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div>
+                        <p class="text-muted mb-2 small">報價單</p>
+                        <h2 class="h3 fw-bold text-secondary mb-0">{{ quote_count | default(0) }}</h2>
+                    </div>
+                    <div class="ms-auto">
+                        <i class="bi bi-file-text-fill fs-2 text-secondary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action Buttons -->
+<div class="mt-4">
+    <h5 class="fw-bold mb-3">快速入口</h5>
+    <div class="row">
+        <div class="col-12 col-md-6 mb-2">
+            <a href="/quotations/new" class="btn btn-primary btn-lg w-100 fw-bold">
+                <i class="bi bi-plus-circle me-2"></i>新增報價單
+            </a>
+        </div>
+        <div class="col-12 col-md-3 mb-2">
+            <a href="/customers/" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="bi bi-search me-2"></i>查詢客戶
+            </a>
+        </div>
+        <div class="col-12 col-md-3 mb-2">
+            <a href="/inventory/ac" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="bi bi-box2 me-2"></i>冷氣庫存
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

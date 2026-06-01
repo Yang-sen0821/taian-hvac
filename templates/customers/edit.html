@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}編輯客戶 — {{ customer.姓名 }} - Taian{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Header -->
+  <div class="mb-4">
+    <h1>編輯客戶 — {{ customer.姓名 }}</h1>
+  </div>
+
+  <!-- Form Card -->
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <form action="/customers/{{ customer._idx }}" method="POST">
+            <!-- 姓名 -->
+            <div class="mb-3">
+              <label for="name" class="form-label">
+                姓名 <span class="text-danger">*</span>
+              </label>
+              <input
+                type="text"
+                class="form-control"
+                id="name"
+                name="姓名"
+                required
+                value="{{ customer.姓名 }}"
+                placeholder="請輸入客戶姓名"
+              >
+            </div>
+
+            <!-- 電話 -->
+            <div class="mb-3">
+              <label for="phone" class="form-label">電話</label>
+              <input
+                type="tel"
+                class="form-control"
+                id="phone"
+                name="電話"
+                value="{{ customer.電話 or '' }}"
+                placeholder="例：0912-345-678"
+              >
+            </div>
+
+            <!-- 廠牌型號 -->
+            <div class="mb-3">
+              <label for="model" class="form-label">廠牌型號</label>
+              <input
+                type="text"
+                class="form-control"
+                id="model"
+                name="廠牌型號"
+                value="{{ customer.廠牌型號 or '' }}"
+                placeholder="例：Daikin FTXP35HVLT"
+              >
+            </div>
+
+            <!-- 地址 -->
+            <div class="mb-3">
+              <label for="address" class="form-label">地址</label>
+              <input
+                type="text"
+                class="form-control"
+                id="address"
+                name="地址"
+                value="{{ customer.地址 or '' }}"
+                placeholder="請輸入安裝地址"
+              >
+            </div>
+
+            <!-- 安裝日期 -->
+            <div class="mb-3">
+              <label for="install_date" class="form-label">安裝日期</label>
+              <input
+                type="date"
+                class="form-control"
+                id="install_date"
+                name="安裝日期"
+                value="{{ customer.安裝日期 or '' }}"
+              >
+            </div>
+
+            <!-- 備註 -->
+            <div class="mb-4">
+              <label for="remarks" class="form-label">備註</label>
+              <textarea
+                class="form-control"
+                id="remarks"
+                name="備註"
+                rows="4"
+                placeholder="請輸入任何備註資訊"
+              >{{ customer.備註 or '' }}</textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check"></i> 儲存變更
+              </button>
+              <a href="/customers/" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> 取消
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

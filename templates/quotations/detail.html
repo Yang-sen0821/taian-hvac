@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}{{ q.quote_number }} — 報價單詳情{% endblock %}
+
+{% block content %}
+<!-- 頂部操作列 -->
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="mb-0 fw-bold font-monospace">{{ q.quote_number }}</h2>
+        {% if q.status == 'draft' %}
+            <span class="badge bg-secondary fs-6">草稿</span>
+        {% elif q.status == 'confirmed' %}
+            <span class="badge bg-primary fs-6">已確認</span>
+        {% elif q.status == 'completed' %}
+            <span class="badge bg-success fs-6">已完成</span>
+        {% elif q.status == 'cancelled' %}
+            <span class="badge bg-danger fs-6">已取消</span>
+        {% else %}
+            <span class="badge bg-secondary fs-6">{{ q.status }}</span>
+        {% endif %}
+    </div>
+    <a href="/quotations/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+</div>
+
+<!-- 報價單主體（適合截圖給客戶） -->
+<div class="card shadow-sm" id="quotation-card">
+    <div class="card-body p-4 p-md-5">
+
+        <!-- 公司抬頭區 -->
+        <div class="row mb-4 pb-3 border-bottom">
+            <div class="col-12 col-md-8">
+                <h3 class="fw-bold mb-1" style="font-size: 1.5rem;">
+                    {% if q.company_title %}
+                        {{ q.company_title }}
+                    {% else %}
+                        泰安冷氣工程行
+                    {% endif %}
+                </h3>
+                {% if q.tax_id %}
+                <p class="text-muted mb-1">統一編號：{{ q.tax_id }}</p>
+                {% endif %}
+            </div>
+            <div class="col-12 col-md-4 text-md-end mt-2 mt-md-0">
+                <p class="text-muted mb-1">報價日期</p>
+                <p class="fw-semibold mb-0">{{ q.quote_date }}</p>
+            </div>
+        </div>
+
+        <!-- 客戶資訊區 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h6 class="text-uppercase text-muted small mb-2 fw-bold tracking-wide">客戶資訊</h6>
+            </div>
+            <div class="col-12 col-md-4">
+                <p class="mb-1 text-muted small">姓名</p>
+                <p class="fw-semibold mb-0">{{ q.customer_name }}</p>
+            </div>
+            <div class="col-12 col-md-4 mt-2 mt-md-0">
+                <p class="mb-1 text-muted small">電話</p>
+                <p class="fw-semibold mb-0">{{ q.customer_phone or '—' }}</p>
+            </div>
+            <div class="col-12 col-md-4 mt-2 mt-md-0">
+                <p class="mb-1 text-muted small">地址</p>
+                <p class="fw-semibold mb-0">{{ q.customer_address or '—' }}</p>
+            </div>
+        </div>
+
+        <!-- 品項明細表格 -->
+        <div class="mb-4">
+            <h6 class="text-uppercase text-muted small mb-3 fw-bold">品項明細</h6>
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>品名 / 規格</th>
+                            <th class="text-center" style="width: 100px;">數量</th>
+                            <th class="text-end" style="width: 130px;">單價 (NT$)</th>
+                            <th class="text-end" style="width: 130px;">小計 (NT$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set items = [
+                            (q.item1_name, q.item1_qty, q.item1_price),
+                            (q.item2_name, q.item2_qty, q.item2_price),
+                            (q.item3_name, q.item3_qty, q.item3_price)
+                        ] %}
+                        {% set has_item = namespace(found=false) %}
+                        {% for name, qty, price in items %}
+                            {% if name %}
+                            {% set has_item.found = true %}
+                            <tr>
+                                <td>{{ name }}</td>
+                                <td class="text-center">{{ qty or 0 }}</td>
+                                <td class="text-end">{{ '{:,.0f}'.format(price or 0) }}</td>
+                                <td class="text-end fw-semibold">
+                                    {{ '{:,.0f}'.format((qty or 0) * (price or 0)) }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not has_item.found %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">無品項記錄</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 費用小計 -->
+        <div class="row justify-content-end mb-4">
+            <div class="col-12 col-md-6 col-lg-5">
+                <table class="table table-sm table-borderless mb-0">
+                    <tbody>
+                        {% if q.engineering and q.engineering > 0 %}
+                        <tr>
+                            <td class="text-muted">工程費</td>
+                            <td class="text-end">NT$ {{ '{:,.0f}'.format(q.engineering) }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if q.other and q.other > 0 %}
+                        <tr>
+                            <td class="text-muted">其他費用</td>
+                            <td class="text-end">NT$ {{ '{:,.0f}'.format(q.other) }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 合計區 -->
+        <div class="row justify-content-end">
+            <div class="col-12 col-md-6 col-lg-5">
+                <div class="card bg-light border-0">
+                    <div class="card-body py-3">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted">未稅合計</td>
+                                    <td class="text-end fw-semibold">
+                                        NT$ {{ '{:,.0f}'.format(q.subtotal or 0) }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">稅額 5%</td>
+                                    <td class="text-end fw-semibold">
+                                        NT$ {{ '{:,.0f}'.format(q.tax_amount or 0) }}
+                                    </td>
+                                </tr>
+                                <tr class="border-top">
+                                    <td class="fw-bold pt-2">含稅總金額</td>
+                                    <td class="text-end pt-2">
+                                        <span style="font-size: 2rem; font-weight: 800; color: #dc3545; line-height: 1.1;">
+                                            NT$ {{ '{:,.0f}'.format(q.total_with_tax or 0) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 安裝日期 & 備註 -->
+        {% if q.install_date or q.notes %}
+        <hr class="my-4">
+        <div class="row g-3">
+            {% if q.install_date %}
+            <div class="col-12 col-md-4">
+                <p class="mb-1 text-muted small fw-bold text-uppercase">預計安裝日期</p>
+                <p class="fw-semibold mb-0">
+                    <i class="bi bi-calendar-check text-primary"></i> {{ q.install_date }}
+                </p>
+            </div>
+            {% endif %}
+            {% if q.notes %}
+            <div class="col-12 {% if q.install_date %}col-md-8{% endif %}">
+                <p class="mb-1 text-muted small fw-bold text-uppercase">備註</p>
+                <p class="mb-0" style="white-space: pre-wrap;">{{ q.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div><!-- /card-body -->
+</div><!-- /card -->
+
+<!-- 底部操作（不列印） -->
+<div class="d-flex flex-wrap gap-2 mt-4 mb-5 d-print-none">
+    <a href="/quotations/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+</div>
+
+<style>
+@media print {
+    .d-print-none { display: none !important; }
+    nav, footer { display: none !important; }
+    #quotation-card { box-shadow: none !important; border: 1px solid #dee2e6 !important; }
+}
+</style>
+{% endblock %}

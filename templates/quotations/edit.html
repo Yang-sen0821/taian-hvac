@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}編輯報價單 {{ q.quote_number }} — 泰安冷氣{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+        <i class="bi bi-pencil-square"></i> 編輯報價單
+        <span class="text-muted fs-5 ms-2 font-monospace">{{ q.quote_number }}</span>
+    </h2>
+    <a href="/quotations/{{ q.id }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回詳情
+    </a>
+</div>
+
+<form method="POST" action="/quotations/{{ q.id }}/edit" id="quotationForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+
+    <!-- Section 1：報價資訊 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-info-circle"></i> 報價資訊
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-3">
+                    <label for="quote_date" class="form-label fw-semibold">報價日期 <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control form-control-lg" id="quote_date" name="quote_date"
+                           value="{{ q.quote_date }}" required>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label for="status" class="form-label fw-semibold">狀態</label>
+                    <select class="form-select" id="status" name="status"
+                            style="font-size: 1rem; padding: .5rem .75rem; height: calc(3.5rem + 2px);">
+                        <option value="draft"     {% if q.status == 'draft' %}selected{% endif %}>草稿</option>
+                        <option value="confirmed" {% if q.status == 'confirmed' %}selected{% endif %}>已確認</option>
+                        <option value="completed" {% if q.status == 'completed' %}selected{% endif %}>已完成</option>
+                        <option value="cancelled" {% if q.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label for="company_title" class="form-label fw-semibold">公司抬頭</label>
+                    <select class="form-select" id="company_title" name="company_title"
+                            style="font-size: 1rem; padding: .5rem .75rem; height: calc(3.5rem + 2px);">
+                        <option value="">— 請選擇公司 —</option>
+                        {% for c in companies %}
+                        <option value="{{ c.name }}" data-tax-id="{{ c.tax_id }}"
+                            {% if q.company_title == c.name %}selected{% endif %}>
+                            {{ c.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label for="tax_id" class="form-label fw-semibold">統一編號</label>
+                    <input type="text" class="form-control form-control-lg" id="tax_id" name="tax_id"
+                           value="{{ q.tax_id or '' }}" placeholder="選擇公司後自動填入" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2：客戶資訊 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-person"></i> 客戶資訊
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label for="customer_name" class="form-label fw-semibold">客戶姓名 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-lg" id="customer_name"
+                           name="customer_name" value="{{ q.customer_name }}" required>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="customer_phone" class="form-label fw-semibold">客戶電話</label>
+                    <input type="text" class="form-control form-control-lg" id="customer_phone"
+                           name="customer_phone" value="{{ q.customer_phone or '' }}">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="customer_address" class="form-label fw-semibold">客戶地址</label>
+                    <input type="text" class="form-control form-control-lg" id="customer_address"
+                           name="customer_address" value="{{ q.customer_address or '' }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3：品項明細 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-list-ul"></i> 品項明細
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 200px;">品名 / 規格</th>
+                            <th style="width: 110px;" class="text-center">數量</th>
+                            <th style="width: 140px;" class="text-center">單價 (NT$)</th>
+                            <th style="width: 140px;" class="text-end">小計 (NT$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in [1, 2, 3] %}
+                        <tr>
+                            <td>
+                                <input type="text" class="form-control" id="item{{ i }}_name" name="item{{ i }}_name"
+                                       value="{{ q['item' ~ i ~ '_name'] or '' }}" placeholder="品名或規格">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control text-center item-qty" id="item{{ i }}_qty"
+                                       name="item{{ i }}_qty" min="0" step="1"
+                                       value="{{ q['item' ~ i ~ '_qty'] or 0 }}"
+                                       data-row="{{ i }}">
+                            </td>
+                            <td>
+                                <input type="number" class="form-control text-end item-price" id="item{{ i }}_price"
+                                       name="item{{ i }}_price" min="0" step="1"
+                                       value="{{ q['item' ~ i ~ '_price'] or 0 }}"
+                                       data-row="{{ i }}">
+                            </td>
+                            <td class="text-end fw-semibold">
+                                <span id="item{{ i }}_subtotal" class="text-muted">0</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4：費用小計 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-calculator"></i> 費用小計
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label for="engineering" class="form-label fw-semibold">工程費 (NT$)</label>
+                    <input type="number" class="form-control form-control-lg text-end" id="engineering"
+                           name="engineering" min="0" step="1" value="{{ q.engineering or 0 }}">
+                </div>
+                <div class="col-12 col-md-6">
+                    <label for="other" class="form-label fw-semibold">其他費用 (NT$)</label>
+                    <input type="number" class="form-control form-control-lg text-end" id="other"
+                           name="other" min="0" step="1" value="{{ q.other or 0 }}">
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="row justify-content-end">
+                <div class="col-12 col-md-5">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-muted">未稅合計</td>
+                                <td class="text-end fw-semibold">
+                                    NT$ <span id="subtotal_display">0</span>
+                                    <input type="hidden" id="subtotal" name="subtotal" value="0">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">稅額 5%</td>
+                                <td class="text-end fw-semibold">
+                                    NT$ <span id="tax_display">0</span>
+                                    <input type="hidden" id="tax_amount" name="tax_amount" value="0">
+                                </td>
+                            </tr>
+                            <tr class="table-light border-top">
+                                <td class="fw-bold">含稅總金額</td>
+                                <td class="text-end">
+                                    <span id="total_display"
+                                          style="font-size: 1.6rem; font-weight: 700; color: #dc3545;">
+                                        NT$ 0
+                                    </span>
+                                    <input type="hidden" id="total_with_tax" name="total_with_tax" value="0">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 5：其他資訊 -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light fw-semibold">
+            <i class="bi bi-calendar-event"></i> 其他資訊
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <label for="install_date" class="form-label fw-semibold">預計安裝日期</label>
+                    <input type="date" class="form-control form-control-lg" id="install_date"
+                           name="install_date" value="{{ q.install_date or '' }}">
+                </div>
+                <div class="col-12 col-md-8">
+                    <label for="notes" class="form-label fw-semibold">備註</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ q.notes or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 送出按鈕 -->
+    <div class="d-grid d-md-flex justify-content-md-end gap-2 mb-5">
+        <a href="/quotations/{{ q.id }}" class="btn btn-outline-secondary btn-lg">取消</a>
+        <button type="submit" class="btn btn-primary btn-lg px-5">
+            <i class="bi bi-check-lg"></i> 儲存變更
+        </button>
+    </div>
+</form>
+
+<script>
+// ====================================================
+// 1. 公司切換 → 統編自動填入
+// ====================================================
+const companies = {{ companies|tojson }};
+
+document.getElementById('company_title').addEventListener('change', function() {
+    const selected = this.value;
+    const taxIdInput = document.getElementById('tax_id');
+    if (!selected) {
+        taxIdInput.value = '';
+        return;
+    }
+    const company = companies.find(c => c.name === selected);
+    taxIdInput.value = company ? (company.tax_id || '') : '';
+});
+
+// ====================================================
+// 2. 品項即時計算
+// ====================================================
+function formatNumber(n) {
+    return n.toLocaleString('zh-TW');
+}
+
+function calcAll() {
+    let itemsTotal = 0;
+
+    for (let i = 1; i <= 3; i++) {
+        const qty   = parseFloat(document.getElementById('item' + i + '_qty').value)   || 0;
+        const price = parseFloat(document.getElementById('item' + i + '_price').value) || 0;
+        const sub   = qty * price;
+        itemsTotal += sub;
+
+        const subtotalEl = document.getElementById('item' + i + '_subtotal');
+        subtotalEl.textContent = formatNumber(sub);
+        subtotalEl.classList.toggle('text-muted', sub === 0);
+    }
+
+    const engineering = parseFloat(document.getElementById('engineering').value) || 0;
+    const other       = parseFloat(document.getElementById('other').value)       || 0;
+
+    const subtotal = itemsTotal + engineering + other;
+    const tax      = Math.round(subtotal * 0.05);
+    const total    = subtotal + tax;
+
+    document.getElementById('subtotal_display').textContent = formatNumber(subtotal);
+    document.getElementById('tax_display').textContent      = formatNumber(tax);
+    document.getElementById('total_display').textContent    = 'NT$ ' + formatNumber(total);
+
+    document.getElementById('subtotal').value       = subtotal;
+    document.getElementById('tax_amount').value     = tax;
+    document.getElementById('total_with_tax').value = total;
+}
+
+document.querySelectorAll('.item-qty, .item-price, #engineering, #other')
+    .forEach(el => el.addEventListener('input', calcAll));
+
+calcAll(); // 載入時計算現有值
+</script>
+{% endblock %}

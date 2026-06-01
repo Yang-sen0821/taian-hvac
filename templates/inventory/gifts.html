@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}贈品庫存 - 泰安冷氣管理系統{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="mb-0">贈品庫存</h1>
+    </div>
+    <div class="col-md-4 text-end">
+        {% if low_count > 0 %}
+        <span class="badge bg-danger">
+            <i class="bi bi-exclamation-triangle-fill"></i> {{ low_count }} 項低庫存
+        </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 搜尋框 -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form method="get" action="/inventory/gifts" class="input-group">
+            <input type="text" class="form-control" name="q" placeholder="搜尋贈品名稱、廠商..." value="{{ request.args.get('q', '') }}">
+            <button class="btn btn-outline-secondary" type="submit">
+                <i class="bi bi-search"></i> 搜尋
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 桌機版 Table -->
+<div class="d-none d-md-block table-responsive mb-4">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>名稱</th>
+                <th>廠商</th>
+                <th>庫存數量</th>
+                <th>實際庫存</th>
+                <th>備註</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if items %}
+                {% for item in items %}
+                <tr {% if item._low %}class="table-warning"{% endif %}>
+                    <td>
+                        {% if item._low %}
+                        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                        {% endif %}
+                        {{ item['名稱'] }}
+                    </td>
+                    <td>{{ item.get('廠商','-') or '-' }}</td>
+                    <td>{{ item.get('庫存數量',0) }}</td>
+                    <td>{{ item.get('備註','-') or '-' }}</td>
+                    <td>
+                        <a href="/inventory/gifts/{{ item._idx }}/edit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i> 編輯
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    {% if request.args.get('q') %}
+                    找不到符合條件的贈品庫存
+                    {% else %}
+                    暫無贈品庫存資料
+                    {% endif %}
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- 手機版卡片 -->
+<div class="d-md-none">
+    {% if items %}
+        {% for item in items %}
+        <div class="card mb-3 {% if item._low %}border-warning{% endif %}">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h6 class="card-title mb-1">
+                            {% if item._low %}
+                            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                            {% endif %}
+                            {{ item['名稱'] }}
+                        </h6>
+                        {% if item.get('廠商') %}
+                        <p class="card-text text-muted small mb-0">廠商：{{ item['廠商'] }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <p class="text-muted small mb-1">庫存數量</p>
+                            <p class="fs-5 fw-bold">{{ item.get('庫存數量',0) }}</p>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <p class="text-muted small mb-1">庫存數量</p>
+                            <p class="fs-5 fw-bold">{{ item._qty }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% if item.get('備註') %}
+                <p class="card-text small mt-2 text-muted">備註：{{ item['備註'] }}</p>
+                {% endif %}
+                <a href="/inventory/gifts/{{ item._idx }}/edit" class="btn btn-sm btn-outline-primary w-100 mt-3">
+                    <i class="bi bi-pencil"></i> 編輯
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+    <div class="alert alert-info text-center py-5">
+        {% if request.args.get('q') %}
+        找不到符合條件的贈品庫存
+        {% else %}
+        暫無贈品庫存資料
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

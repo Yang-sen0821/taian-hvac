@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}客戶資料庫 - Taian{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Header Section -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1>客戶資料庫</h1>
+      <span class="badge bg-primary">共 {{ total_all }} 筆</span>
+    </div>
+    <a href="/customers/new" class="btn btn-success">
+      <i class="fas fa-plus"></i> 新增客戶
+    </a>
+  </div>
+
+  <!-- Search Section -->
+  <div class="row mb-4">
+    <div class="col-lg-8">
+      <form method="GET" action="/customers/" class="input-group">
+        <input
+          type="text"
+          name="q"
+          class="form-control"
+          placeholder="搜尋姓名/電話/地址"
+          value="{{ q or '' }}"
+        >
+        <button class="btn btn-outline-secondary" type="submit">
+          <i class="fas fa-search"></i> 搜尋
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Search Results Count -->
+  {% if q %}
+    <div class="alert alert-info" role="alert">
+      找到 <strong>{{ total }}</strong> 筆
+    </div>
+  {% endif %}
+
+  <!-- Desktop View (Table) -->
+  <div class="d-none d-lg-block">
+    {% if customers %}
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>姓名</th>
+              <th>電話</th>
+              <th>地址</th>
+              <th>廠牌型號</th>
+              <th>安裝日期</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for customer in customers %}
+            <tr>
+              <td>
+                <a href="/customers/{{ customer._idx }}" class="text-decoration-none">
+                  {{ customer.姓名 }}
+                </a>
+              </td>
+              <td>{{ customer.電話 or '-' }}</td>
+              <td>{{ customer.地址 or '-' }}</td>
+              <td>{{ customer.廠牌型號 or '-' }}</td>
+              <td>{{ customer.安裝日期 or '-' }}</td>
+              <td>
+                <a href="/customers/{{ customer._idx }}" class="btn btn-sm btn-outline-primary">
+                  查看詳情
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-warning" role="alert">
+        尚無客戶資料
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Mobile View (List) -->
+  <div class="d-lg-none">
+    {% if customers %}
+      <div class="list-group">
+        {% for customer in customers %}
+        <a href="/customers/{{ customer._idx }}" class="list-group-item list-group-item-action py-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="mb-1">{{ customer.姓名 }}</h6>
+              <small class="text-muted">{{ customer.電話 or '無電話' }}</small>
+              <br>
+              <small class="text-muted">{{ customer.地址 or '無地址' }}</small>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-warning" role="alert">
+        尚無客戶資料
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Pagination -->
+  {% if pages > 1 %}
+  <nav aria-label="Page navigation" class="mt-4">
+    <ul class="pagination justify-content-center">
+      <!-- Previous Button -->
+      <li class="page-item {% if page == 1 %}disabled{% endif %}">
+        <a class="page-link" href="/customers/?page={{ page - 1 }}{% if q %}&q={{ q }}{% endif %}">
+          前一頁
+        </a>
+      </li>
+
+      <!-- Page Numbers -->
+      {% for page_num in range(1, pages + 1) %}
+      <li class="page-item {% if page_num == page %}active{% endif %}">
+        <a class="page-link" href="/customers/?page={{ page_num }}{% if q %}&q={{ q }}{% endif %}">
+          {{ page_num }}
+        </a>
+      </li>
+      {% endfor %}
+
+      <!-- Next Button -->
+      <li class="page-item {% if page == pages %}disabled{% endif %}">
+        <a class="page-link" href="/customers/?page={{ page + 1 }}{% if q %}&q={{ q }}{% endif %}">
+          後一頁
+        </a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

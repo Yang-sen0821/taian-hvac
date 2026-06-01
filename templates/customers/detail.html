@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.姓名 }} - 客戶詳情 - Taian{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <!-- Return Button -->
+  <a href="/customers/" class="btn btn-outline-secondary mb-4">
+    <i class="fas fa-arrow-left"></i> 返回列表
+  </a>
+
+  <!-- Customer Name Header -->
+  <h1 class="mb-4">{{ customer.姓名 }}</h1>
+
+  <!-- Customer Information Cards -->
+  <div class="row">
+    <!-- Main Info Card -->
+    <div class="col-lg-8 mb-4">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">基本資料</h5>
+          <hr>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="text-muted small">電話</label>
+              <p class="fs-5">{{ customer.電話 or '－' }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="text-muted small">地址</label>
+              <p class="fs-5">{{ customer.地址 or '－' }}</p>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="text-muted small">廠牌型號</label>
+              <p class="fs-5">{{ customer.廠牌型號 or '－' }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="text-muted small">安裝日期</label>
+              <p class="fs-5">{{ customer.安裝日期 or '－' }}</p>
+            </div>
+          </div>
+
+          {% if customer.備註 %}
+          <div class="row">
+            <div class="col-12">
+              <label class="text-muted small">備註</label>
+              <p class="fs-5">{{ customer.備註 }}</p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons Card -->
+    <div class="col-lg-4 mb-4">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">操作</h5>
+          <hr>
+          <a href="/customers/{{ customer._idx }}/edit" class="btn btn-primary w-100 mb-3">
+            <i class="fas fa-edit"></i> 編輯客戶
+          </a>
+          <a href="/quotations/new?customer_name={{ customer.姓名 }}&customer_phone={{ customer.電話 or '' }}" class="btn btn-success w-100">
+            <i class="fas fa-file-invoice"></i> 新增報價單
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
