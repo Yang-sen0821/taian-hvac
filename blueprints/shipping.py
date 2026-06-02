@@ -32,8 +32,10 @@ def deduct_inventory(item_name, qty):
 @shipping_bp.route("/")
 @login_required
 def list_shipping():
+    from flask import request as req
+    status_filter = req.args.get("status", "")
     orders = ShippingOrder.query.order_by(ShippingOrder.id.desc()).all()
-    return render_template("shipping/list.html", orders=orders)
+    return render_template("shipping/list.html", orders=orders, status_filter=status_filter)
 
 
 @shipping_bp.route("/new/<int:quotation_id>", methods=["GET", "POST"])
