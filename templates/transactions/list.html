@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}進出帳 — 泰安冷氣{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-cash-stack"></i> 進出帳</h2>
+    <a href="/transactions/new" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> 新增記錄
+    </a>
+</div>
+
+<!-- 小計卡片 -->
+<div class="row mb-4">
+    <div class="col-12 col-md-4 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-2 small">總收入</p>
+                <h3 class="fw-bold text-success mb-0">NT$ {{ "{:,.0f}".format(total_income) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-2 small">總支出</p>
+                <h3 class="fw-bold text-danger mb-0">NT$ {{ "{:,.0f}".format(total_expense) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4 mb-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <p class="text-muted mb-2 small">淨額</p>
+                <h3 class="fw-bold mb-0 {% if net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    NT$ {{ "{:,.0f}".format(net) }}
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 篩選列 -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <ul class="nav nav-pills mb-3">
+            <li class="nav-item">
+                <a class="nav-link {% if not type_filter %}active{% endif %}"
+                   href="/transactions/{% if start or end %}?start={{ start }}&end={{ end }}{% endif %}">全部</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if type_filter == 'income' %}active{% endif %}"
+                   href="/transactions/?type=income{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}">收入</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if type_filter == 'expense' %}active{% endif %}"
+                   href="/transactions/?type=expense{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}">支出</a>
+            </li>
+        </ul>
+        <form method="GET" action="/transactions/" class="row g-2 align-items-end">
+            <input type="hidden" name="type" value="{{ type_filter }}">
+            <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">起始日期</label>
+                <input type="date" class="form-control" name="start" value="{{ start }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">結束日期</label>
+                <input type="date" class="form-control" name="end" value="{{ end }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="bi bi-search"></i> 查詢
+                </button>
+                <a href="/transactions/" class="btn btn-outline-secondary">清除</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 記錄表 -->
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        {% if transactions %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>日期</th>
+                        <th class="text-center">類型</th>
+                        <th class="text-end">金額</th>
+                        <th>類別</th>
+                        <th>說明</th>
+                        <th class="text-center">來源</th>
+                        <th class="text-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td>{{ t.date or '—' }}</td>
+                        <td class="text-center">
+                            {% if t.type == 'income' %}
+                                <span class="badge bg-success">收入</span>
+                            {% else %}
+                                <span class="badge bg-danger">支出</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold {% if t.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                            NT$ {{ "{:,.0f}".format(t.amount or 0) }}
+                        </td>
+                        <td>{{ t.category or '—' }}</td>
+                        <td>{{ t.description or '—' }}</td>
+                        <td class="text-center">
+                            {% if t.ref_type == 'manual' %}
+                                <span class="badge bg-light text-dark border">手動</span>
+                            {% else %}
+                                <span class="badge bg-info text-dark">{{ t.ref_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if t.ref_type == 'manual' %}
+                            <form method="POST" action="/transactions/{{ t.id }}/delete" class="d-inline"
+                                  onsubmit="return confirm('確定刪除這筆記錄？');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted small">自動</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="px-3 py-2 text-muted small border-top">共 {{ transactions|length }} 筆</div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-inbox display-4 d-block mb-3"></i>
+            <p class="mb-2">目前沒有收支記錄</p>
+            <a href="/transactions/new" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> 新增第一筆記錄
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

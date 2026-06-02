@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from auth import login_required
 from sheets_client import get_sheet, append_row
 from config import COMPANY_OPTIONS
+from db import db
 
 quotations_bp = Blueprint("quotations", __name__, url_prefix="/quotations")
 
@@ -94,13 +95,70 @@ def new_quote():
         customers=customers, ac_items=ac_items, gift_items=gift_items,
         companies=COMPANY_OPTIONS, today=datetime.date.today().isoformat())
 
-@quotations_bp.route("/<int:idx>")
+@quotations_bp.route("/<int:quote_id>")
 @login_required
-def detail(idx):
-    quotes = get_sheet("報價單記錄")
-    if idx >= len(quotes):
+def detail(quote_id):
+    from db import Quotation
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        flash("找不到該報價單（可能已被刪除）")
         return redirect(url_for("quotations.list_quotes"))
-    return render_template("quotations/detail.html", quote=quotes[idx], idx=idx)
+    return render_template("quotations/detail.html", quote=q.to_sheet_dict(), idx=quote_id)
+
+
+@quotations_bp.route("/delete", methods=["POST"])
+@login_required
+def delete_quotes():
+    from db import Quotation
+    ids = request.form.getlist("quote_ids")
+    deleted = 0
+    for qid in ids:
+        try:
+            q = db.session.get(Quotation, int(qid))
+        except (ValueError, TypeError):
+            q = None
+        if q:
+            db.session.delete(q)
+            deleted += 1
+    db.session.commit()
+    flash(f"已刪除 {deleted} 筆報價單")
+    return redirect(url_for("quotations.list_quotes"))
+
+
+@quotations_bp.route("/api/inventory-search")
+@login_required
+def inventory_search():
+    """打字篩選庫存品項，回傳符合的冷氣與贈品（含庫存量）。"""
+    q = request.args.get("q", "").strip()
+    from db import ACInventory, GiftInventory
+    results = []
+    for item in ACInventory.query.all():
+        name = item.spec or ""
+        if not q or q in name:
+            stock = item.actual_qty or item.system_qty or "0"
+            results.append({"name": name, "type": "冷氣", "stock": stock})
+    for item in GiftInventory.query.all():
+        name = item.name or ""
+        if not q or q in name:
+            results.append({"name": name, "type": "贈品", "stock": item.qty or "0"})
+    return jsonify(results[:15])
+
+
+@quotations_bp.route("/api/inventory-check")
+@login_required
+def inventory_check():
+    """檢查品名是否存在於庫存，回傳 {exists: bool, stock: ...}。"""
+    name = request.args.get("name", "").strip()
+    if not name:
+        return jsonify({"exists": True, "stock": None})
+    from db import ACInventory, GiftInventory
+    ac = ACInventory.query.filter(ACInventory.spec == name).first()
+    if ac:
+        return jsonify({"exists": True, "stock": ac.actual_qty or ac.system_qty or "0"})
+    gift = GiftInventory.query.filter(GiftInventory.name == name).first()
+    if gift:
+        return jsonify({"exists": True, "stock": gift.qty or "0"})
+    return jsonify({"exists": False, "stock": None})
 
 @quotations_bp.route("/api/customer-lookup")
 @login_required

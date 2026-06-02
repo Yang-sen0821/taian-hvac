@@ -102,25 +102,12 @@
                         <!-- 品項 1 -->
                         <tr>
                             <td>
-                                <select class="form-select item-select" name="item1_name" id="item1_name" data-row="1">
-                                  <option value="">— 選擇品項 —</option>
-                                  <optgroup label="冷氣（{{ ac_items|length }} 項）">
-                                    {% for item in ac_items %}
-                                    <option value="{{ item.spec }}"
-                                            data-stock="{{ item.actual_qty or item.system_qty or 0 }}">
-                                      {{ item.spec }}（庫存：{{ item.actual_qty or item.system_qty or 0 }}）
-                                    </option>
-                                    {% endfor %}
-                                  </optgroup>
-                                  <optgroup label="贈品（{{ gift_items|length }} 項）">
-                                    {% for item in gift_items %}
-                                    <option value="{{ item.name }}"
-                                            data-stock="{{ item.qty or 0 }}">
-                                      {{ item.name }}（庫存：{{ item.qty or 0 }}）
-                                    </option>
-                                    {% endfor %}
-                                  </optgroup>
-                                </select>
+                                <div class="position-relative">
+                                  <input type="text" class="form-control item-name" name="item1_name" id="item1_name"
+                                         data-row="1" autocomplete="off" placeholder="打字搜尋品項…">
+                                  <div id="item_dropdown_1" class="list-group position-absolute w-100 shadow-sm"
+                                       style="z-index:1000; display:none; max-height:220px; overflow-y:auto;"></div>
+                                </div>
                                 <div id="stock_warning_1" class="mt-1 small text-danger"></div>
                                 <div class="mt-1">
                                   <button type="button" class="btn btn-sm btn-outline-secondary price-hint-btn" data-row="1">
@@ -146,25 +133,12 @@
                         <!-- 品項 2 -->
                         <tr>
                             <td>
-                                <select class="form-select item-select" name="item2_name" id="item2_name" data-row="2">
-                                  <option value="">— 選擇品項 —</option>
-                                  <optgroup label="冷氣（{{ ac_items|length }} 項）">
-                                    {% for item in ac_items %}
-                                    <option value="{{ item.spec }}"
-                                            data-stock="{{ item.actual_qty or item.system_qty or 0 }}">
-                                      {{ item.spec }}（庫存：{{ item.actual_qty or item.system_qty or 0 }}）
-                                    </option>
-                                    {% endfor %}
-                                  </optgroup>
-                                  <optgroup label="贈品（{{ gift_items|length }} 項）">
-                                    {% for item in gift_items %}
-                                    <option value="{{ item.name }}"
-                                            data-stock="{{ item.qty or 0 }}">
-                                      {{ item.name }}（庫存：{{ item.qty or 0 }}）
-                                    </option>
-                                    {% endfor %}
-                                  </optgroup>
-                                </select>
+                                <div class="position-relative">
+                                  <input type="text" class="form-control item-name" name="item2_name" id="item2_name"
+                                         data-row="2" autocomplete="off" placeholder="打字搜尋品項…">
+                                  <div id="item_dropdown_2" class="list-group position-absolute w-100 shadow-sm"
+                                       style="z-index:1000; display:none; max-height:220px; overflow-y:auto;"></div>
+                                </div>
                                 <div id="stock_warning_2" class="mt-1 small text-danger"></div>
                                 <div class="mt-1">
                                   <button type="button" class="btn btn-sm btn-outline-secondary price-hint-btn" data-row="2">
@@ -190,25 +164,12 @@
                         <!-- 品項 3 -->
                         <tr>
                             <td>
-                                <select class="form-select item-select" name="item3_name" id="item3_name" data-row="3">
-                                  <option value="">— 選擇品項 —</option>
-                                  <optgroup label="冷氣（{{ ac_items|length }} 項）">
-                                    {% for item in ac_items %}
-                                    <option value="{{ item.spec }}"
-                                            data-stock="{{ item.actual_qty or item.system_qty or 0 }}">
-                                      {{ item.spec }}（庫存：{{ item.actual_qty or item.system_qty or 0 }}）
-                                    </option>
-                                    {% endfor %}
-                                  </optgroup>
-                                  <optgroup label="贈品（{{ gift_items|length }} 項）">
-                                    {% for item in gift_items %}
-                                    <option value="{{ item.name }}"
-                                            data-stock="{{ item.qty or 0 }}">
-                                      {{ item.name }}（庫存：{{ item.qty or 0 }}）
-                                    </option>
-                                    {% endfor %}
-                                  </optgroup>
-                                </select>
+                                <div class="position-relative">
+                                  <input type="text" class="form-control item-name" name="item3_name" id="item3_name"
+                                         data-row="3" autocomplete="off" placeholder="打字搜尋品項…">
+                                  <div id="item_dropdown_3" class="list-group position-absolute w-100 shadow-sm"
+                                       style="z-index:1000; display:none; max-height:220px; overflow-y:auto;"></div>
+                                </div>
                                 <div id="stock_warning_3" class="mt-1 small text-danger"></div>
                                 <div class="mt-1">
                                   <button type="button" class="btn btn-sm btn-outline-secondary price-hint-btn" data-row="3">
@@ -448,18 +409,70 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// SELECT 變更 → 顯示庫存警示
-document.querySelectorAll('.item-select').forEach(sel => {
-  sel.addEventListener('change', function() {
-    const row = this.dataset.row;
-    const opt = this.options[this.selectedIndex];
-    const stock = parseInt(opt.dataset.stock || '99');
-    const warn = document.getElementById('stock_warning_' + row);
-    if (this.value && stock <= 2) {
-      warn.textContent = '⚠️ 庫存僅剩 ' + stock + ' 台，請先叫貨';
-    } else {
-      warn.textContent = '';
-    }
+// ====================================================
+// 品項打字搜尋 + 庫存驗證（跟客戶搜尋同邏輯）
+// ====================================================
+document.querySelectorAll('.item-name').forEach(input => {
+  const row = input.dataset.row;
+  const dd = document.getElementById('item_dropdown_' + row);
+  const warn = document.getElementById('stock_warning_' + row);
+  let itemTimeout = null;
+
+  // 打字 debounce 搜尋
+  input.addEventListener('input', function() {
+    clearTimeout(itemTimeout);
+    warn.textContent = '';
+    const q = this.value.trim();
+    if (q.length < 1) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
+
+    itemTimeout = setTimeout(() => {
+      fetch('/quotations/api/inventory-search?q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+          dd.innerHTML = '';
+          if (!data || data.length === 0) { dd.style.display = 'none'; return; }
+          data.forEach(it => {
+            const opt = document.createElement('button');
+            opt.type = 'button';
+            opt.className = 'list-group-item list-group-item-action text-start';
+            const badge = it.type === '冷氣' ? 'bg-warning text-dark' : 'bg-success';
+            opt.innerHTML =
+              '<span class="fw-semibold">' + it.name + '</span>' +
+              ' <span class="badge ' + badge + ' ms-1">' + it.type + '</span>' +
+              ' <span class="text-muted small ms-1">庫存 ' + it.stock + '</span>';
+            opt.addEventListener('click', () => {
+              input.value = it.name;
+              dd.style.display = 'none'; dd.innerHTML = '';
+              const stock = parseInt(it.stock) || 0;
+              warn.textContent = (stock <= 2) ? '⚠️ 庫存僅剩 ' + stock + '，請先叫貨' : '';
+            });
+            dd.appendChild(opt);
+          });
+          dd.style.display = 'block';
+        })
+        .catch(() => { dd.style.display = 'none'; });
+    }, 300);
+  });
+
+  // 離開欄位 → 驗證品名是否存在庫存
+  input.addEventListener('blur', function() {
+    // 延遲讓 dropdown 點擊先觸發
+    setTimeout(() => {
+      dd.style.display = 'none';
+      const name = input.value.trim();
+      if (!name) { warn.textContent = ''; return; }
+      fetch('/quotations/api/inventory-check?name=' + encodeURIComponent(name))
+        .then(r => r.json())
+        .then(d => {
+          if (!d.exists) {
+            warn.textContent = '⚠️ 該品項不存在於物品庫，請確認名稱或於物品庫新增';
+          } else {
+            const stock = parseInt(d.stock) || 0;
+            warn.textContent = (stock <= 2) ? '⚠️ 庫存僅剩 ' + stock + '，請先叫貨' : '';
+          }
+        })
+        .catch(() => {});
+    }, 200);
   });
 });
 

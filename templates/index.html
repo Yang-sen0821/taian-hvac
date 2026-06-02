@@ -4,14 +4,13 @@
 
 {% block content %}
 <!-- Welcome Title -->
-<div class="mb-5">
+<div class="mb-4">
     <h1 class="h3 fw-bold">歡迎，{{ session.user.name }}</h1>
     <p class="text-muted">泰安冷氣管理系統</p>
 </div>
 
 <!-- Statistics Cards -->
-<div class="row mb-5">
-    <!-- Customers Count Card -->
+<div class="row mb-4">
     <div class="col-6 col-md-3 mb-3">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-body">
@@ -20,15 +19,11 @@
                         <p class="text-muted mb-2 small">客戶總數</p>
                         <h2 class="h3 fw-bold text-primary mb-0">{{ customer_count | default(0) }}</h2>
                     </div>
-                    <div class="ms-auto">
-                        <i class="bi bi-people-fill fs-2 text-primary opacity-50"></i>
-                    </div>
+                    <div class="ms-auto"><i class="bi bi-people-fill fs-2 text-primary opacity-50"></i></div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- AC Units Count Card -->
     <div class="col-6 col-md-3 mb-3">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-body">
@@ -37,15 +32,11 @@
                         <p class="text-muted mb-2 small">冷氣品項</p>
                         <h2 class="h3 fw-bold text-warning mb-0">{{ ac_count | default(0) }}</h2>
                     </div>
-                    <div class="ms-auto">
-                        <i class="bi bi-snow fs-2 text-warning opacity-50"></i>
-                    </div>
+                    <div class="ms-auto"><i class="bi bi-snow fs-2 text-warning opacity-50"></i></div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Gifts Count Card -->
     <div class="col-6 col-md-3 mb-3">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-body">
@@ -54,15 +45,11 @@
                         <p class="text-muted mb-2 small">贈品品項</p>
                         <h2 class="h3 fw-bold text-success mb-0">{{ gift_count | default(0) }}</h2>
                     </div>
-                    <div class="ms-auto">
-                        <i class="bi bi-gift-fill fs-2 text-success opacity-50"></i>
-                    </div>
+                    <div class="ms-auto"><i class="bi bi-gift-fill fs-2 text-success opacity-50"></i></div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Quotations Count Card -->
     <div class="col-6 col-md-3 mb-3">
         <div class="card h-100 border-0 shadow-sm">
             <div class="card-body">
@@ -71,12 +58,79 @@
                         <p class="text-muted mb-2 small">報價單</p>
                         <h2 class="h3 fw-bold text-secondary mb-0">{{ quote_count | default(0) }}</h2>
                     </div>
-                    <div class="ms-auto">
-                        <i class="bi bi-file-text-fill fs-2 text-secondary opacity-50"></i>
-                    </div>
+                    <div class="ms-auto"><i class="bi bi-file-text-fill fs-2 text-secondary opacity-50"></i></div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- 收支總覽 -->
+<h5 class="fw-bold mb-3"><i class="bi bi-cash-stack"></i> 收支總覽</h5>
+<div class="row mb-4">
+    {% for key, label in [('today','今日'), ('week','本週'), ('month','本月'), ('year','本年')] %}
+    <div class="col-6 col-md-3 mb-3">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body">
+                <p class="text-muted mb-2 small fw-semibold">{{ label }}</p>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">收入</span>
+                    <span class="text-success fw-semibold">NT$ {{ "{:,.0f}".format(stats[key].income) }}</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">支出</span>
+                    <span class="text-danger fw-semibold">NT$ {{ "{:,.0f}".format(stats[key].expense) }}</span>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex justify-content-between">
+                    <span class="fw-semibold">淨額</span>
+                    <span class="fw-bold {% if stats[key].net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        NT$ {{ "{:,.0f}".format(stats[key].net) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 自訂日期範圍查詢 -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="/" class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label class="form-label small mb-1 fw-semibold">自訂範圍查詢</label>
+                <input type="date" class="form-control" name="start" value="{{ stats.custom_start }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small mb-1">至</label>
+                <input type="date" class="form-control" name="end" value="{{ stats.custom_end }}">
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="bi bi-search"></i> 查詢
+                </button>
+            </div>
+            {% if stats.custom_range %}
+            <div class="col-12 col-md-4">
+                <div class="d-flex justify-content-around small border rounded py-2">
+                    <span>收入 <span class="text-success fw-semibold">NT$ {{ "{:,.0f}".format(stats.custom_range.income) }}</span></span>
+                    <span>支出 <span class="text-danger fw-semibold">NT$ {{ "{:,.0f}".format(stats.custom_range.expense) }}</span></span>
+                    <span>淨 <span class="fw-bold {% if stats.custom_range.net >= 0 %}text-success{% else %}text-danger{% endif %}">NT$ {{ "{:,.0f}".format(stats.custom_range.net) }}</span></span>
+                </div>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- 6 個月收支趨勢 -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-semibold">
+        <i class="bi bi-bar-chart-line"></i> 最近 6 個月收支趨勢
+    </div>
+    <div class="card-body">
+        <canvas id="trendChart" height="100"></canvas>
     </div>
 </div>
 
@@ -84,21 +138,67 @@
 <div class="mt-4">
     <h5 class="fw-bold mb-3">快速入口</h5>
     <div class="row">
-        <div class="col-12 col-md-6 mb-2">
+        <div class="col-12 col-md-4 mb-2">
             <a href="/quotations/new" class="btn btn-primary btn-lg w-100 fw-bold">
                 <i class="bi bi-plus-circle me-2"></i>新增報價單
             </a>
         </div>
-        <div class="col-12 col-md-3 mb-2">
-            <a href="/customers/" class="btn btn-outline-secondary btn-lg w-100">
-                <i class="bi bi-search me-2"></i>查詢客戶
+        <div class="col-6 col-md-2 mb-2">
+            <a href="/transactions/new" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="bi bi-cash me-2"></i>記一筆
             </a>
         </div>
-        <div class="col-12 col-md-3 mb-2">
+        <div class="col-6 col-md-2 mb-2">
+            <a href="/customers/" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="bi bi-search me-2"></i>客戶
+            </a>
+        </div>
+        <div class="col-6 col-md-2 mb-2">
             <a href="/inventory/ac" class="btn btn-outline-secondary btn-lg w-100">
-                <i class="bi bi-box2 me-2"></i>冷氣庫存
+                <i class="bi bi-box2 me-2"></i>庫存
+            </a>
+        </div>
+        <div class="col-6 col-md-2 mb-2">
+            <a href="/transactions/" class="btn btn-outline-secondary btn-lg w-100">
+                <i class="bi bi-cash-stack me-2"></i>進出帳
             </a>
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ stats.trend_labels | tojson }},
+            datasets: [
+                {
+                    label: '收入',
+                    data: {{ stats.trend_income | tojson }},
+                    backgroundColor: 'rgba(25, 135, 84, 0.7)'
+                },
+                {
+                    label: '支出',
+                    data: {{ stats.trend_expense | tojson }},
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => 'NT$' + v.toLocaleString() }
+                }
+            }
+        }
+    });
+})();
+</script>
 {% endblock %}

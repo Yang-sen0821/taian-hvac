@@ -9,6 +9,7 @@ from blueprints.inventory import inventory_bp
 from blueprints.quotations import quotations_bp
 from blueprints.shipping import shipping_bp
 from blueprints.purchases import purchases_bp
+from blueprints.transactions import transactions_bp, compute_dashboard
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -21,6 +22,7 @@ app.register_blueprint(inventory_bp)
 app.register_blueprint(quotations_bp)
 app.register_blueprint(shipping_bp)
 app.register_blueprint(purchases_bp)
+app.register_blueprint(transactions_bp)
 
 @app.route("/")
 def index():
@@ -33,9 +35,21 @@ def index():
         quote_count    = len(get_sheet("報價單記錄"))
     except Exception:
         customer_count = ac_count = gift_count = quote_count = 0
+    try:
+        stats = compute_dashboard(request.args.get("start"), request.args.get("end"))
+    except Exception:
+        stats = {
+            "today": {"income": 0, "expense": 0, "net": 0},
+            "week": {"income": 0, "expense": 0, "net": 0},
+            "month": {"income": 0, "expense": 0, "net": 0},
+            "year": {"income": 0, "expense": 0, "net": 0},
+            "trend_labels": [], "trend_income": [], "trend_expense": [],
+            "custom_range": None, "custom_start": "", "custom_end": "",
+        }
     return render_template("index.html",
         customer_count=customer_count, ac_count=ac_count,
-        gift_count=gift_count, quote_count=quote_count)
+        gift_count=gift_count, quote_count=quote_count,
+        stats=stats)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():

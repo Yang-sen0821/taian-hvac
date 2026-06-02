@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}新增收支記錄 — 泰安冷氣{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-plus-circle"></i> 新增收支記錄</h2>
+    <a href="/transactions/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回列表
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST" action="/transactions/new">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label for="date" class="form-label fw-semibold">日期 <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control form-control-lg" id="date" name="date"
+                                   value="{{ today }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold d-block">類型 <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="type" id="type_income" value="income" checked>
+                                <label class="btn btn-outline-success btn-lg" for="type_income">收入</label>
+                                <input type="radio" class="btn-check" name="type" id="type_expense" value="expense">
+                                <label class="btn btn-outline-danger btn-lg" for="type_expense">支出</label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="amount" class="form-label fw-semibold">金額 (NT$) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control form-control-lg text-end" id="amount" name="amount"
+                                   min="0" step="1" value="0" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label for="category" class="form-label fw-semibold">類別</label>
+                            <input type="text" class="form-control form-control-lg" id="category" name="category"
+                                   placeholder="如 銷售收入 / 進貨成本 / 其他" list="categoryList">
+                            <datalist id="categoryList">
+                                <option value="銷售收入">
+                                <option value="進貨成本">
+                                <option value="工程收入">
+                                <option value="雜支">
+                                <option value="其他">
+                            </datalist>
+                        </div>
+                        <div class="col-12">
+                            <label for="description" class="form-label fw-semibold">說明</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"
+                                      placeholder="其他注意事項或說明…"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-grid d-md-flex justify-content-md-end gap-2 mt-4">
+                        <a href="/transactions/" class="btn btn-outline-secondary btn-lg">取消</a>
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="bi bi-check-lg"></i> 儲存記錄
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
