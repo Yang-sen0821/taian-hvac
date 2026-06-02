@@ -178,3 +178,61 @@ SHEET_MODELS = {
     "贈品庫存": GiftInventory,
     "報價單記錄": Quotation,
 }
+
+
+class ShippingOrder(db.Model):
+    """出貨單 — 報價單確認後建立，確認出貨後扣庫存並產生收入交易"""
+    __tablename__ = "shipping_orders"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey("quotations.id"), nullable=True)
+    quote_number = db.Column(db.String(50), default="")
+    customer_name = db.Column(db.String(100), default="")
+    company = db.Column(db.String(100), default="")
+    ship_date = db.Column(db.String(50), default="")
+    status = db.Column(db.String(20), default="待出貨")
+    note = db.Column(db.Text, default="")
+    item1_name = db.Column(db.String(200), default="")
+    item1_qty = db.Column(db.Float, default=0)
+    item1_price = db.Column(db.Float, default=0)
+    item2_name = db.Column(db.String(200), default="")
+    item2_qty = db.Column(db.Float, default=0)
+    item2_price = db.Column(db.Float, default=0)
+    item3_name = db.Column(db.String(200), default="")
+    item3_qty = db.Column(db.Float, default=0)
+    item3_price = db.Column(db.Float, default=0)
+    engineering = db.Column(db.Float, default=0)
+    other = db.Column(db.Float, default=0)
+    pretax = db.Column(db.Float, default=0)
+    tax = db.Column(db.Float, default=0)
+    total = db.Column(db.Float, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Purchase(db.Model):
+    """進貨記錄 — 確認進貨後自動增加庫存"""
+    __tablename__ = "purchases"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    purchase_date = db.Column(db.String(50), default="")
+    item_name = db.Column(db.String(200), default="")
+    item_type = db.Column(db.String(10), default="ac")
+    quantity = db.Column(db.Float, default=0)
+    unit_cost = db.Column(db.Float, default=0)
+    total_cost = db.Column(db.Float, default=0)
+    supplier = db.Column(db.String(200), default="")
+    note = db.Column(db.Text, default="")
+    status = db.Column(db.String(20), default="待確認")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Transaction(db.Model):
+    """進出帳記錄"""
+    __tablename__ = "transactions"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    date = db.Column(db.String(50), default="")
+    type = db.Column(db.String(20), default="income")
+    amount = db.Column(db.Float, default=0)
+    category = db.Column(db.String(100), default="")
+    description = db.Column(db.Text, default="")
+    ref_type = db.Column(db.String(50), default="")
+    ref_id = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

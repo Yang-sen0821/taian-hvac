@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}進貨記錄{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>進貨記錄</h1>
+    <a href="/purchases/new" class="btn btn-primary">新增進貨</a>
+  </div>
+
+  {% if purchases %}
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead class="table-light">
+        <tr>
+          <th>編號</th>
+          <th>日期</th>
+          <th>品名</th>
+          <th>類型</th>
+          <th>數量</th>
+          <th>單位成本</th>
+          <th>總成本</th>
+          <th>供應商</th>
+          <th>狀態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in purchases %}
+        <tr>
+          <td><strong>#{{ p.id }}</strong></td>
+          <td>{{ p.purchase_date.strftime('%Y-%m-%d') }}</td>
+          <td>{{ p.item_name }}</td>
+          <td>
+            {% if p.item_type == 'ac' %}
+              冷氣
+            {% elif p.item_type == 'gift' %}
+              贈品
+            {% else %}
+              {{ p.item_type }}
+            {% endif %}
+          </td>
+          <td>{{ p.quantity }}</td>
+          <td>NT$ {{ "{:,.0f}".format(p.unit_cost) }}</td>
+          <td>NT$ {{ "{:,.0f}".format(p.total_cost) }}</td>
+          <td>{{ p.supplier or '—' }}</td>
+          <td>
+            {% if p.status == '待確認' %}
+              <span class="badge bg-warning text-dark">待確認</span>
+            {% elif p.status == '已入庫' %}
+              <span class="badge bg-success">已入庫</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ p.status }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.status == '待確認' %}
+              <form method="POST" action="/purchases/{{ p.id }}/confirm" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('確認將此進貨記錄入庫？');">確認入庫</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info" role="alert">
+    目前沒有進貨記錄。<a href="/purchases/new" class="alert-link">新增第一筆進貨</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

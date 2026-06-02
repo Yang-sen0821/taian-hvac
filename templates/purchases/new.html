@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}新增進貨記錄{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="mb-4">新增進貨記錄</h1>
+
+  <form method="POST" action="/purchases" class="needs-validation">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label for="purchase_date" class="form-label">進貨日期</label>
+          <input type="date" class="form-control" id="purchase_date" name="purchase_date"
+                 value="{{ today }}" required>
+        </div>
+      </div>
+    </div>
+
+    <fieldset class="mb-4">
+      <legend class="fs-6 fw-bold mb-3">品項類型</legend>
+      <div class="form-check form-check-inline">
+        <input type="radio" class="form-check-input" id="type_ac" name="item_type"
+               value="ac" checked>
+        <label class="form-check-label" for="type_ac">冷氣</label>
+      </div>
+      <div class="form-check form-check-inline">
+        <input type="radio" class="form-check-input" id="type_gift" name="item_type"
+               value="gift">
+        <label class="form-check-label" for="type_gift">贈品</label>
+      </div>
+    </fieldset>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label for="item_name" class="form-label">品項</label>
+          <select class="form-select" id="item_name" name="item_name" required>
+            <option value="">-- 選擇品項 --</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="mb-3">
+          <label for="quantity" class="form-label">數量</label>
+          <input type="number" class="form-control" id="quantity" name="quantity"
+                 min="0" step="1" required>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="mb-3">
+          <label for="unit_cost" class="form-label">單位成本</label>
+          <input type="number" class="form-control" id="unit_cost" name="unit_cost"
+                 min="0" step="0.01" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label for="total_cost_display" class="form-label">總成本</label>
+          <div class="form-control-plaintext fs-5 fw-bold">
+            <span id="total_cost_display">NT$ 0</span>
+          </div>
+          <input type="hidden" id="total_cost" name="total_cost" value="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="mb-3">
+          <label for="supplier" class="form-label">供應商</label>
+          <input type="text" class="form-control" id="supplier" name="supplier">
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="mb-3">
+          <label for="remark" class="form-label">備註</label>
+          <textarea class="form-control" id="remark" name="remark" rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <button type="submit" class="btn btn-primary btn-lg">送出</button>
+      <a href="/purchases" class="btn btn-secondary btn-lg">取消</a>
+    </div>
+  </form>
+</div>
+
+<script>
+// 品項資料（由 Flask 模板變數注入）
+const acItems = {{ ac_items | map(attribute='spec') | list | tojson }};
+const giftItems = {{ gift_items | map(attribute='name') | list | tojson }};
+
+// 根據選中的類型更新品項下拉選單
+function updateItems() {
+  const isAc = document.getElementById('type_ac').checked;
+  const items = isAc ? acItems : giftItems;
+  const sel = document.getElementById('item_name');
+  sel.innerHTML = '<option value="">-- 選擇品項 --</option>';
+  items.forEach(function(name) {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    sel.appendChild(option);
+  });
+}
+
+// 計算總成本
+function calcTotal() {
+  const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+  const unitCost = parseFloat(document.getElementById('unit_cost').value) || 0;
+  const total = quantity * unitCost;
+
+  document.getElementById('total_cost_display').textContent =
+    'NT$ ' + total.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+  document.getElementById('total_cost').value = total;
+}
+
+// 事件綁定
+document.querySelectorAll('input[name=item_type]').forEach(function(radio) {
+  radio.addEventListener('change', updateItems);
+});
+document.getElementById('quantity').addEventListener('input', calcTotal);
+document.getElementById('unit_cost').addEventListener('input', calcTotal);
+
+// 頁面載入時初始化
+window.addEventListener('DOMContentLoaded', function() {
+  updateItems();
+  calcTotal();
+});
+</script>
+{% endblock %}

@@ -7,6 +7,8 @@ from sheets_client import get_sheet
 from blueprints.customers import customers_bp
 from blueprints.inventory import inventory_bp
 from blueprints.quotations import quotations_bp
+from blueprints.shipping import shipping_bp
+from blueprints.purchases import purchases_bp
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -17,6 +19,8 @@ db.init_app(app)
 app.register_blueprint(customers_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(quotations_bp)
+app.register_blueprint(shipping_bp)
+app.register_blueprint(purchases_bp)
 
 @app.route("/")
 def index():

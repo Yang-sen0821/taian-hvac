@@ -67,3 +67,38 @@ def gift_edit(idx):
         flash(f"✅ 庫存已更新：{item.get('名稱','')}")
         return redirect(url_for("inventory.gift_list"))
     return render_template("inventory/gift_edit.html", item=item, idx=idx)
+
+
+@inventory_bp.route("/ac/new", methods=["GET", "POST"])
+@login_required
+def ac_new():
+    from db import db as _db, ACInventory
+    if request.method == "POST":
+        item = ACInventory(
+            spec=request.form.get("spec", ""),
+            system_qty=request.form.get("system_qty", "0"),
+            actual_qty=request.form.get("actual_qty", "0"),
+            note=request.form.get("note", "")
+        )
+        _db.session.add(item)
+        _db.session.commit()
+        flash("冷氣品項「{}」已新增".format(item.spec))
+        return redirect(url_for("inventory.ac_list"))
+    return render_template("inventory/ac_new.html")
+
+
+@inventory_bp.route("/gifts/new", methods=["GET", "POST"])
+@login_required
+def gift_new():
+    from db import db as _db, GiftInventory
+    if request.method == "POST":
+        item = GiftInventory(
+            name=request.form.get("name", ""),
+            qty=request.form.get("qty", "0"),
+            note=request.form.get("note", "")
+        )
+        _db.session.add(item)
+        _db.session.commit()
+        flash("贈品「{}」已新增".format(item.name))
+        return redirect(url_for("inventory.gift_list"))
+    return render_template("inventory/gift_new.html")

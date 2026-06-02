@@ -166,6 +166,16 @@
             </div>
         </div>
 
+        <!-- 建立出貨單 -->
+        {% if q.status in ['draft', 'confirmed'] %}
+        <div class="mt-4 mb-3">
+            <a href="/shipping/new/{{ q.id }}" class="btn btn-warning">
+                <i class="bi bi-truck"></i> 建立出貨單
+            </a>
+            <small class="text-muted ms-2">建立後確認出貨，庫存自動扣減並記入收入帳</small>
+        </div>
+        {% endif %}
+
         <!-- 安裝日期 & 備註 -->
         {% if q.install_date or q.notes %}
         <hr class="my-4">

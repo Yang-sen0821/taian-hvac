@@ -111,3 +111,29 @@ def customer_lookup():
     customers = get_sheet("顧客資料")
     results = [c for c in customers if q in c.get("姓名", "") or q in c.get("電話", "")][:5]
     return jsonify(results)
+
+
+@quotations_bp.route("/api/item-prices")
+@login_required
+def item_prices():
+    item_name = request.args.get("item", "").strip()
+    if not item_name:
+        return jsonify([])
+    from db import Quotation as Q
+    results = []
+    seen = set()
+    quotes = Q.query.order_by(Q.id.desc()).limit(100).all()
+    for q in quotes:
+        for name_attr, price_attr in [
+            ("item1_name", "item1_price"),
+            ("item2_name", "item2_price"),
+            ("item3_name", "item3_price"),
+        ]:
+            if getattr(q, name_attr, "") == item_name:
+                price = getattr(q, price_attr, 0) or 0
+                if price and price not in seen:
+                    seen.add(price)
+                    results.append({"price": price, "date": q.quote_date or ""})
+        if len(results) >= 5:
+            break
+    return jsonify(results)

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}建立出貨單{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="row mb-4">
+    <div class="col-md-8 offset-md-2">
+      <h1>建立出貨單</h1>
+    </div>
+  </div>
+
+  <!-- 報價單摘要卡片 -->
+  <div class="row mb-4">
+    <div class="col-md-8 offset-md-2">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">報價單摘要</h5>
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <p class="text-muted mb-1">報價單號</p>
+              <p class="fw-bold">{{ quote.quote_number }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted mb-1">客戶姓名</p>
+              <p class="fw-bold">{{ quote.customer_name }}</p>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-12">
+              <p class="text-muted mb-1">公司</p>
+              <p class="fw-bold">{{ quote.company }}</p>
+            </div>
+          </div>
+
+          <!-- 品項明細 -->
+          <div class="mb-3">
+            <p class="text-muted mb-2">品項明細</p>
+            <ul class="list-unstyled">
+              {% if quote.item1_name %}
+              <li class="mb-2">
+                <span class="fw-bold">{{ quote.item1_name }}</span>
+                <span class="text-muted">×{{ quote.item1_qty }} @ NT$ {{ "{:,.0f}".format(quote.item1_price) }}</span>
+              </li>
+              {% endif %}
+              {% if quote.item2_name %}
+              <li class="mb-2">
+                <span class="fw-bold">{{ quote.item2_name }}</span>
+                <span class="text-muted">×{{ quote.item2_qty }} @ NT$ {{ "{:,.0f}".format(quote.item2_price) }}</span>
+              </li>
+              {% endif %}
+              {% if quote.item3_name %}
+              <li class="mb-2">
+                <span class="fw-bold">{{ quote.item3_name }}</span>
+                <span class="text-muted">×{{ quote.item3_qty }} @ NT$ {{ "{:,.0f}".format(quote.item3_price) }}</span>
+              </li>
+              {% endif %}
+            </ul>
+          </div>
+
+          <hr class="my-3">
+
+          <div class="row">
+            <div class="col-md-6">
+              <p class="text-muted mb-1">含稅總金額</p>
+              <p class="fs-5 fw-bold text-primary">NT$ {{ "{:,.0f}".format(quote.total) }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 建立出貨單表單 -->
+  <div class="row mb-4">
+    <div class="col-md-8 offset-md-2">
+      <form method="POST" action="{{ url_for('shipping.new_shipping', quotation_id=quote.id) }}">
+        <div class="mb-3">
+          <label for="ship_date" class="form-label">出貨日期 <span class="text-danger">*</span></label>
+          <input type="date" class="form-control" id="ship_date" name="ship_date" value="{{ today }}" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="notes" class="form-label">備註</label>
+          <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="輸入出貨單備註..."></textarea>
+        </div>
+
+        <div class="alert alert-info mb-3">
+          <strong>提示：</strong>建立後可在出貨單頁面按「確認出貨」，確認後庫存自動扣減並記入收入帳。
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">建立出貨單</button>
+          <a href="{{ url_for('shipping.list_shipping') }}" class="btn btn-secondary">取消</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

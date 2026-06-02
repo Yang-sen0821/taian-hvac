@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}新增贈品品項 - 泰安冷氣管理系統{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <!-- 返回按鈕 -->
+            <div class="mb-3">
+                <a href="/inventory/gifts" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> 返回
+                </a>
+            </div>
+
+            <!-- 標題 -->
+            <h2 class="mb-4">新增贈品品項</h2>
+
+            <!-- 提醒訊息 -->
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle"></i> 新增品項後，報價單即可選用此品項
+            </div>
+
+            <!-- 表單 -->
+            <form method="POST" action="/inventory/gifts/new" class="mb-5">
+                <div class="mb-3">
+                    <label for="name" class="form-label">品名 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="qty" class="form-label">庫存數量</label>
+                    <input type="number" class="form-control" id="qty" name="qty" value="0" min="0">
+                </div>
+
+                <div class="mb-3">
+                    <label for="note" class="form-label">備註</label>
+                    <textarea class="form-control" id="note" name="note" rows="4"></textarea>
+                </div>
+
+                <!-- 按鈕 -->
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> 送出
+                    </button>
+                    <a href="/inventory/gifts" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> 取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

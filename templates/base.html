@@ -45,15 +45,23 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/customers/">客戶庫</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/inventory/ac">冷氣庫存</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/inventory/gifts">贈品庫存</a>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            庫存管理
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/inventory/ac">冷氣庫存</a></li>
+                            <li><a class="dropdown-item" href="/inventory/ac/new">+ 新增冷氣品項</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/inventory/gifts">贈品庫存</a></li>
+                            <li><a class="dropdown-item" href="/inventory/gifts/new">+ 新增贈品品項</a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/quotations/">報價單</a>
                     </li>
+                    <li class="nav-item"><a class="nav-link" href="/shipping/">出貨單</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/purchases/">進貨</a></li>
                 </ul>
                 <div class="d-lg-flex align-items-center ms-3">
                     {% if session.user %}
