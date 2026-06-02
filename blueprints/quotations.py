@@ -103,7 +103,7 @@ def detail(quote_id):
     if not q:
         flash("找不到該報價單（可能已被刪除）")
         return redirect(url_for("quotations.list_quotes"))
-    return render_template("quotations/detail.html", quote=q.to_sheet_dict(), idx=quote_id)
+    return render_template("quotations/detail.html", q=q, idx=quote_id)
 
 
 @quotations_bp.route("/delete", methods=["POST"])

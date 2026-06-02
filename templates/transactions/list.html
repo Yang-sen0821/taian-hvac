@@ -112,6 +112,10 @@
                         <td class="text-center">
                             {% if t.ref_type == 'manual' %}
                                 <span class="badge bg-light text-dark border">手動</span>
+                            {% elif t.ref_type == 'shipping_order' %}
+                                <span class="badge bg-info text-dark">出貨</span>
+                            {% elif t.ref_type == 'purchase' %}
+                                <span class="badge bg-info text-dark">進貨</span>
                             {% else %}
                                 <span class="badge bg-info text-dark">{{ t.ref_type }}</span>
                             {% endif %}

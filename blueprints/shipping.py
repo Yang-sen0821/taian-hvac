@@ -85,11 +85,13 @@ def confirm_shipping(order_id):
     if not order or order.status == "已出貨":
         flash("出貨單不存在或已出貨")
         return redirect(url_for("shipping.list_shipping"))
+    failed_items = []
     for name, qty in [(order.item1_name, order.item1_qty),
                       (order.item2_name, order.item2_qty),
                       (order.item3_name, order.item3_qty)]:
         if name and qty:
-            deduct_inventory(name, qty)
+            if not deduct_inventory(name, qty):
+                failed_items.append(name)
     order.status = "已出貨"
     if not order.ship_date:
         order.ship_date = datetime.date.today().isoformat()
@@ -106,4 +108,6 @@ def confirm_shipping(order_id):
     db.session.commit()
     total_fmt = "{:,.0f}".format(order.total)
     flash("出貨確認完成！庫存已扣減，收入 NT${} 已記帳".format(total_fmt))
+    if failed_items:
+        flash("⚠️ 下列品項在庫存中找不到完全相符的名稱，未扣減庫存，請至庫存頁手動調整：{}".format("、".join(failed_items)))
     return redirect(url_for("shipping.detail_shipping", order_id=order_id))

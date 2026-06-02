@@ -30,7 +30,7 @@
             </div>
             <div class="col-md-6">
               <p class="text-muted mb-1">出貨日期</p>
-              <p class="fw-bold">{{ order.ship_date.strftime('%Y-%m-%d') if order.ship_date else '-' }}</p>
+              <p class="fw-bold">{{ order.ship_date or '-' }}</p>
             </div>
           </div>
           <div class="row">
@@ -43,11 +43,11 @@
               <p class="fw-bold">{{ order.company }}</p>
             </div>
           </div>
-          {% if order.notes %}
+          {% if order.note %}
           <div class="row mt-3">
             <div class="col-md-12">
               <p class="text-muted mb-1">備註</p>
-              <p>{{ order.notes }}</p>
+              <p>{{ order.note }}</p>
             </div>
           </div>
           {% endif %}
@@ -110,16 +110,16 @@
             <div class="col-md-6 offset-md-6">
               <div class="mb-2">
                 <span class="text-muted">工程費</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.engineering_fee) if order.engineering_fee else 0 }}</span>
+                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.engineering) if order.engineering else 0 }}</span>
               </div>
               <div class="mb-2">
                 <span class="text-muted">其他</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.other_fee) if order.other_fee else 0 }}</span>
+                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.other) if order.other else 0 }}</span>
               </div>
               <hr>
               <div class="mb-2">
                 <span class="text-muted">未稅合計</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.subtotal) if order.subtotal else 0 }}</span>
+                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.pretax) if order.pretax else 0 }}</span>
               </div>
               <div class="mb-3">
                 <span class="text-muted">稅額 (5%)</span>
@@ -148,7 +148,7 @@
         </div>
       {% elif order.status == '已出貨' %}
         <div class="alert alert-success">
-          <strong>✓ 已出貨</strong>庫存已於 {{ order.confirmed_at.strftime('%Y-%m-%d %H:%M') if order.confirmed_at else '—' }} 扣減，收入已記錄。
+          <strong>✓ 已出貨</strong>庫存已於 {{ order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '—' }} 扣減，收入已記錄。
         </div>
       {% endif %}
     </div>
