@@ -32,10 +32,10 @@
                     <label for="status" class="form-label fw-semibold">狀態</label>
                     <select class="form-select" id="status" name="status"
                             style="font-size: 1rem; padding: .5rem .75rem; height: calc(3.5rem + 2px);">
-                        <option value="draft"     {% if q.status == 'draft' %}selected{% endif %}>草稿</option>
-                        <option value="confirmed" {% if q.status == 'confirmed' %}selected{% endif %}>已確認</option>
-                        <option value="completed" {% if q.status == 'completed' %}selected{% endif %}>已完成</option>
-                        <option value="cancelled" {% if q.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                        <option value="草稿"   {% if q.status == '草稿' %}selected{% endif %}>草稿</option>
+                        <option value="已確認" {% if q.status == '已確認' %}selected{% endif %}>已確認</option>
+                        <option value="已完成" {% if q.status == '已完成' %}selected{% endif %}>已完成</option>
+                        <option value="已取消" {% if q.status == '已取消' %}selected{% endif %}>已取消</option>
                     </select>
                 </div>
                 <div class="col-12 col-md-3">
@@ -45,7 +45,7 @@
                         <option value="">— 請選擇公司 —</option>
                         {% for c in companies %}
                         <option value="{{ c.name }}" data-tax-id="{{ c.tax_id }}"
-                            {% if q.company_title == c.name %}selected{% endif %}>
+                            {% if q.company == c.name %}selected{% endif %}>
                             {{ c.name }}
                         </option>
                         {% endfor %}
@@ -103,22 +103,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for i in [1, 2, 3] %}
+                        {% set item_rows = [
+                            (1, q.item1_name, q.item1_qty, q.item1_price),
+                            (2, q.item2_name, q.item2_qty, q.item2_price),
+                            (3, q.item3_name, q.item3_qty, q.item3_price)
+                        ] %}
+                        {% for i, iname, iqty, iprice in item_rows %}
                         <tr>
                             <td>
                                 <input type="text" class="form-control" id="item{{ i }}_name" name="item{{ i }}_name"
-                                       value="{{ q['item' ~ i ~ '_name'] or '' }}" placeholder="品名或規格">
+                                       value="{{ iname or '' }}" placeholder="品名或規格">
                             </td>
                             <td>
                                 <input type="number" class="form-control text-center item-qty" id="item{{ i }}_qty"
                                        name="item{{ i }}_qty" min="0" step="1"
-                                       value="{{ q['item' ~ i ~ '_qty'] or 0 }}"
+                                       value="{{ iqty or 0 }}"
                                        data-row="{{ i }}">
                             </td>
                             <td>
                                 <input type="number" class="form-control text-end item-price" id="item{{ i }}_price"
                                        name="item{{ i }}_price" min="0" step="1"
-                                       value="{{ q['item' ~ i ~ '_price'] or 0 }}"
+                                       value="{{ iprice or 0 }}"
                                        data-row="{{ i }}">
                             </td>
                             <td class="text-end fw-semibold">
@@ -202,7 +207,7 @@
                 </div>
                 <div class="col-12 col-md-8">
                     <label for="notes" class="form-label fw-semibold">備註</label>
-                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ q.notes or '' }}</textarea>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ q.note or '' }}</textarea>
                 </div>
             </div>
         </div>

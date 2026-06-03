@@ -50,7 +50,7 @@
             <td>{{ o.quote_number }}</td>
             <td>{{ o.customer_name }}</td>
             <td>{{ o.company }}</td>
-            <td>{{ o.ship_date.strftime('%Y-%m-%d') if o.ship_date else '-' }}</td>
+            <td>{{ o.ship_date or '-' }}</td>
             <td>NT$ {{ "{:,.0f}".format(o.total) }}</td>
             <td>
               {% if o.status == '待出貨' %}

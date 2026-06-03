@@ -30,7 +30,7 @@
         {% for p in purchases %}
         <tr>
           <td><strong>#{{ p.id }}</strong></td>
-          <td>{{ p.purchase_date.strftime('%Y-%m-%d') }}</td>
+          <td>{{ p.purchase_date or '-' }}</td>
           <td>{{ p.item_name }}</td>
           <td>
             {% if p.item_type == 'ac' %}

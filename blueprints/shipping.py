@@ -111,3 +111,26 @@ def confirm_shipping(order_id):
     if failed_items:
         flash("⚠️ 下列品項在庫存中找不到完全相符的名稱，未扣減庫存，請至庫存頁手動調整：{}".format("、".join(failed_items)))
     return redirect(url_for("shipping.detail_shipping", order_id=order_id))
+
+
+@shipping_bp.route("/<int:order_id>/revert", methods=["POST"])
+@login_required
+def revert_shipping(order_id):
+    """返還出貨單：僅限【待出貨】（尚未扣庫存）的單可操作，刪除出貨單並將報價單狀態改回草稿。"""
+    order = db.session.get(ShippingOrder, order_id)
+    if not order or order.status != "待出貨":
+        flash("僅待出貨的出貨單可返還")
+        if order:
+            return redirect(url_for("shipping.detail_shipping", order_id=order_id))
+        return redirect(url_for("shipping.list_shipping"))
+
+    quotation_id = order.quotation_id
+    # 把對應報價單狀態改回草稿，讓業務可重新編輯
+    quote = db.session.get(Quotation, quotation_id)
+    if quote:
+        quote.status = "草稿"
+
+    db.session.delete(order)
+    db.session.commit()
+    flash("已返還為報價單草稿，可重新編輯")
+    return redirect(url_for("quotations.detail", quote_id=quotation_id))

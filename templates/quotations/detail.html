@@ -205,6 +205,14 @@
     <a href="/quotations/" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> 返回列表
     </a>
+    {% if q.status == '草稿' %}
+    <a href="/quotations/{{ q.id }}/edit" class="btn btn-outline-secondary">
+        <i class="bi bi-pencil-square"></i> 編輯
+    </a>
+    {% endif %}
+    <a href="/quotations/{{ q.id }}/print" class="btn btn-outline-primary">
+        <i class="bi bi-printer"></i> 列印 / 合約版
+    </a>
 </div>
 
 <style>

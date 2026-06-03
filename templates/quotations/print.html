@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>估價單 {{ q.quote_number }} — {{ q.company }}</title>
+    <style>
+        /* ===== 基本版面 ===== */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "微軟正黑體", "Microsoft JhengHei", Arial, sans-serif;
+            font-size: 13px;
+            color: #111;
+            background: #f0f0f0;
+        }
+
+        /* A4 紙張容器 */
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: #fff;
+            padding: 14mm 14mm 12mm 14mm;
+            position: relative;
+        }
+
+        /* ===== 抬頭 ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #222;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .header-left h1 {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 2px;
+        }
+        .header-left p {
+            font-size: 15px;
+            font-weight: 700;
+            color: #333;
+            letter-spacing: 4px;
+        }
+        .header-right {
+            text-align: right;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #444;
+        }
+
+        /* ===== 客戶資訊 ===== */
+        .customer-section {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 10px;
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        .customer-section .field {
+            flex: 1;
+        }
+        .customer-section .field label {
+            font-size: 11px;
+            color: #666;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .customer-section .field span {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        /* ===== 品項表 ===== */
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+        }
+        table.items th, table.items td {
+            border: 1px solid #aaa;
+            padding: 5px 7px;
+        }
+        table.items thead th {
+            background: #e8e8e8;
+            font-weight: 700;
+            text-align: center;
+            font-size: 12px;
+        }
+        table.items tbody td.name { min-width: 120px; }
+        table.items tbody td.center { text-align: center; }
+        table.items tbody td.right { text-align: right; }
+
+        /* ===== 合計區 ===== */
+        .totals {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+        .totals table {
+            border-collapse: collapse;
+            min-width: 240px;
+        }
+        .totals table td {
+            padding: 4px 8px;
+            border: 1px solid #aaa;
+            font-size: 13px;
+        }
+        .totals table tr.total-row td {
+            font-weight: 800;
+            font-size: 15px;
+            background: #f5f5f5;
+        }
+
+        /* ===== 合約條款 ===== */
+        .contract {
+            border: 1px solid #bbb;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            background: #fffdf5;
+        }
+        .contract h4 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+        }
+        .contract ol {
+            padding-left: 18px;
+            line-height: 2;
+            font-size: 12px;
+        }
+        .contract ol li.highlight {
+            color: #c00;
+            font-weight: 700;
+        }
+
+        /* ===== 銀行/證照 ===== */
+        .bank-info {
+            font-size: 11.5px;
+            color: #444;
+            margin-bottom: 10px;
+            padding: 5px 10px;
+            border-left: 3px solid #888;
+            background: #f8f8f8;
+        }
+
+        /* ===== 簽章區 ===== */
+        .sign-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            margin-bottom: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #ccc;
+        }
+        .sign-box {
+            flex: 1;
+            text-align: center;
+        }
+        .sign-box label {
+            display: block;
+            font-weight: 700;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .sign-box img.stamp {
+            width: 160px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        .sign-box .blank-sig {
+            width: 100%;
+            height: 80px;
+            border: 1.5px solid #888;
+            border-radius: 4px;
+            background: #fff;
+        }
+        .sign-box .date-blank {
+            width: 100%;
+            height: 40px;
+            border-bottom: 1.5px solid #333;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* ===== 頁尾聲明 ===== */
+        .footer-notice {
+            font-size: 11px;
+            color: #555;
+            text-align: center;
+            border-top: 1px dashed #bbb;
+            padding-top: 6px;
+            margin-top: 4px;
+        }
+
+        /* ===== 操作列（列印時隱藏） ===== */
+        .action-bar {
+            width: 210mm;
+            margin: 0 auto 12px auto;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn-print {
+            background: #0d6efd;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 7px 18px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .btn-back {
+            color: #555;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 7px 12px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+        }
+
+        /* ===== 列印媒體查詢 ===== */
+        @media print {
+            body { background: #fff; }
+            .action-bar { display: none !important; }
+            .page {
+                width: 100%;
+                margin: 0;
+                padding: 10mm 12mm;
+                box-shadow: none;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 操作列（列印時隱藏） -->
+<div class="action-bar d-print-none">
+    <button class="btn-print" onclick="window.print()">&#128438; 列印 / 儲存 PDF</button>
+    <a href="/quotations/{{ q.id }}" class="btn-back">&#8592; 返回報價單</a>
+</div>
+
+<div class="page">
+
+    <!-- (a) 抬頭 -->
+    <div class="header">
+        <div class="header-left">
+            <h1>{{ q.company or '泰安電器水電行' }}</h1>
+            <p>估　價　單</p>
+        </div>
+        <div class="header-right">
+            <div>電話 / LINE：0984-190-152</div>
+            <div>FB：泰安電器水電行</div>
+            <div>IG：taian_tien.chi.hanh</div>
+            <div style="margin-top:4px; font-size:11px; color:#777;">
+                報價單號：{{ q.quote_number }}&nbsp;&nbsp;|&nbsp;&nbsp;日期：{{ q.quote_date }}
+            </div>
+        </div>
+    </div>
+
+    <!-- (b) 客戶資訊 -->
+    <div class="customer-section">
+        <div class="field">
+            <label>客戶姓名</label>
+            <span>{{ q.customer_name or '—' }}</span>
+        </div>
+        <div class="field">
+            <label>聯絡電話</label>
+            <span>{{ q.customer_phone or '—' }}</span>
+        </div>
+        <div class="field" style="flex: 2;">
+            <label>地址 / 案場</label>
+            <span>{{ q.customer_address or '—' }}</span>
+        </div>
+    </div>
+
+    <!-- (c) 品項表 -->
+    <table class="items">
+        <thead>
+            <tr>
+                <th style="text-align:left; width:38%;">品項</th>
+                <th style="width:10%;">數量</th>
+                <th style="width:16%;">單價</th>
+                <th style="width:16%;">金額</th>
+                <th style="width:20%;">備註</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set rows = [
+                (q.item1_name, q.item1_qty, q.item1_price, q.item1_sub),
+                (q.item2_name, q.item2_qty, q.item2_price, q.item2_sub),
+                (q.item3_name, q.item3_qty, q.item3_price, q.item3_sub)
+            ] %}
+            {% set has_item = namespace(found=false) %}
+            {% for iname, iqty, iprice, isub in rows %}
+                {% if iname %}
+                {% set has_item.found = true %}
+                <tr>
+                    <td class="name">{{ iname }}</td>
+                    <td class="center">{{ iqty|int if iqty and iqty == iqty|int else iqty or 0 }}</td>
+                    <td class="right">{{ '{:,.0f}'.format(iprice or 0) }}</td>
+                    <td class="right">{{ '{:,.0f}'.format(isub or 0) }}</td>
+                    <td></td><!-- 備註欄位保留（第二段再填入） -->
+                </tr>
+                {% endif %}
+            {% endfor %}
+            {% if not has_item.found %}
+            <tr>
+                <td colspan="5" style="text-align:center; color:#aaa;">（無品項）</td>
+            </tr>
+            {% endif %}
+            <!-- 工程費列（有值才顯示） -->
+            {% if q.engineering and q.engineering > 0 %}
+            <tr>
+                <td colspan="3" class="right" style="color:#555;">工程費</td>
+                <td class="right">{{ '{:,.0f}'.format(q.engineering) }}</td>
+                <td></td>
+            </tr>
+            {% endif %}
+            {% if q.other and q.other > 0 %}
+            <tr>
+                <td colspan="3" class="right" style="color:#555;">其他費用</td>
+                <td class="right">{{ '{:,.0f}'.format(q.other) }}</td>
+                <td></td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+
+    <!-- (d) 合計區 -->
+    <div class="totals">
+        <table>
+            <tr>
+                <td>合計（未稅）</td>
+                <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}</td>
+            </tr>
+            <tr>
+                <td>稅金 5%</td>
+                <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.tax or 0) }}</td>
+            </tr>
+            <tr class="total-row">
+                <td>總計（含稅）</td>
+                <td style="text-align:right; color:#c00;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- (e) 簡式合約條款 -->
+    <div class="contract">
+        <h4>合約條款</h4>
+        <ol>
+            <li>本報價單經業主簽准視同訂購之附件</li>
+            <li>本報價單內未列入部分，不視為工程施作範圍</li>
+            <li>業主未付清該標的物之貨款或交付之票據未全部兌現時，承包商保有該標的物的所有權</li>
+            <li>保固期：施工安裝保固一年（從驗收完成日起算），機器設備零件等依原廠提供之保固為準</li>
+            <li>如業主無依承包商所建議之冷氣噸位大小購買，日後如有吹不冷或損壞，不列入保固範圍</li>
+            <li class="highlight">付款方式：簽准後需先收取設備費用，進場配管完成收取施工材料費，安裝完成後收取尾款。</li>
+        </ol>
+    </div>
+
+    <!-- (f) 銀行/證照 -->
+    <div class="bank-info">
+        戶名：泰安電器水電行蔣佳良　／　009 彰化銀行（南台南分行）　／　帳號：6440 01 018086 00
+        　／　國家冷凍空調丙級技術士證 001-044724 號
+    </div>
+
+    <!-- (g) 簽章區 -->
+    <div class="sign-area">
+        <!-- 公司簽章 -->
+        <div class="sign-box">
+            <label>公司簽章：</label>
+            {% if q.company == '泰安電器水電行' %}
+                <img class="stamp" src="/static/stamps/stamp_98811221_t.png"
+                     alt="泰安電器水電行章">
+            {% elif q.company == '泰安冷氣空調有限公司' %}
+                <img class="stamp" src="/static/stamps/stamp_62193072_t.png"
+                     alt="泰安冷氣空調有限公司章">
+            {% else %}
+                <!-- 無對應印章，保留空白 -->
+                <div style="height:80px;"></div>
+            {% endif %}
+        </div>
+
+        <!-- 客戶簽名空白框 -->
+        <div class="sign-box">
+            <label>客戶簽名：</label>
+            <div class="blank-sig"></div>
+        </div>
+
+        <!-- 日期空白 -->
+        <div class="sign-box">
+            <label>日期：</label>
+            <div class="date-blank"></div>
+        </div>
+    </div>
+
+    <!-- (h) 頁尾聲明 -->
+    <div class="footer-notice">
+        簽章後回傳視同於正式訂購單　※此報價單內容與報價有效期限為期一個月。
+    </div>
+
+</div><!-- /page -->
+
+</body>
+</html>

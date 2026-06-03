@@ -106,6 +106,97 @@ def detail(quote_id):
     return render_template("quotations/detail.html", q=q, idx=quote_id)
 
 
+@quotations_bp.route("/<int:quote_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_quote(quote_id):
+    """草稿報價單編輯 — 僅 status == '草稿' 可進入。"""
+    from db import Quotation
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        flash("找不到該報價單")
+        return redirect(url_for("quotations.list_quotes"))
+
+    if q.status != "草稿":
+        flash("僅草稿可編輯")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+
+    if request.method == "POST":
+        f = request.form
+        # 公司抬頭與統編
+        company = f.get("company_title", "").strip()
+        tax_id = next((c["tax_id"] for c in COMPANY_OPTIONS if c["name"] == company), "")
+
+        # 重新計算品項小計
+        items_data = []
+        for i in range(1, 4):
+            name  = f.get(f"item{i}_name", "").strip()
+            qty   = safe_float(f.get(f"item{i}_qty", "0"))
+            price = safe_float(f.get(f"item{i}_price", "0"))
+            sub   = qty * price
+            items_data.append({"name": name, "qty": qty, "price": price, "sub": sub})
+
+        engineering = safe_float(f.get("engineering", "0"))
+        other       = safe_float(f.get("other", "0"))
+        pretax      = sum(it["sub"] for it in items_data) + engineering + other
+        tax         = round(pretax * 0.05)
+        total       = pretax + tax
+
+        # 更新 ORM 欄位
+        q.company        = company
+        q.tax_id         = tax_id
+        q.quote_date     = f.get("quote_date", q.quote_date)
+        q.customer_name  = f.get("customer_name", "").strip()
+        q.customer_phone = f.get("customer_phone", "").strip()
+        q.customer_address = f.get("customer_address", "").strip()
+        q.item1_name = items_data[0]["name"]
+        q.item1_qty  = items_data[0]["qty"]
+        q.item1_price = items_data[0]["price"]
+        q.item1_sub  = items_data[0]["sub"]
+        q.item2_name = items_data[1]["name"]
+        q.item2_qty  = items_data[1]["qty"]
+        q.item2_price = items_data[1]["price"]
+        q.item2_sub  = items_data[1]["sub"]
+        q.item3_name = items_data[2]["name"]
+        q.item3_qty  = items_data[2]["qty"]
+        q.item3_price = items_data[2]["price"]
+        q.item3_sub  = items_data[2]["sub"]
+        q.engineering = engineering
+        q.other       = other
+        q.pretax      = pretax
+        q.tax         = tax
+        q.total       = total
+        q.install_date = f.get("install_date", "").strip()
+        q.note         = f.get("notes", "").strip()
+        # 狀態：允許在草稿編輯頁直接定案（例如改為「已確認」）；僅接受合法值
+        new_status = f.get("status", "").strip()
+        if new_status in ("草稿", "已確認", "已完成", "已取消"):
+            q.status = new_status
+
+        db.session.commit()
+        flash(f"✅ 報價單 {q.quote_number} 已更新，含稅總金額 NT${total:,.0f}")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+
+    # GET：提供下拉選單資料（比照 new_quote）
+    customers  = get_sheet("顧客資料")
+    ac_items   = get_sheet("冷氣庫存")
+    gift_items = get_sheet("贈品庫存")
+    return render_template("quotations/edit.html",
+        q=q, customers=customers, ac_items=ac_items,
+        gift_items=gift_items, companies=COMPANY_OPTIONS)
+
+
+@quotations_bp.route("/<int:quote_id>/print")
+@login_required
+def print_quote(quote_id):
+    """報價單列印版（合約＋藍章＋簽名框）。"""
+    from db import Quotation
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        flash("找不到該報價單")
+        return redirect(url_for("quotations.list_quotes"))
+    return render_template("quotations/print.html", q=q)
+
+
 @quotations_bp.route("/delete", methods=["POST"])
 @login_required
 def delete_quotes():
