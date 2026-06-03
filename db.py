@@ -10,6 +10,29 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
+def parse_qty(qty_text):
+    """把數量文字解析成 float（扣庫存用）。
+
+    純數字字串（含千分位逗號、前後空白）→ 轉成 float；
+    例如 "乙式"、"一批" 等非數字文字 → 回傳 0.0。
+    """
+    if qty_text is None:
+        return 0.0
+    # 已是數字型別直接轉
+    if isinstance(qty_text, (int, float)):
+        try:
+            return float(qty_text)
+        except (TypeError, ValueError):
+            return 0.0
+    s = str(qty_text).strip().replace(",", "")  # 去除千分位逗號與空白
+    if s == "":
+        return 0.0
+    try:
+        return float(s)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 class Customer(db.Model):
     """顧客資料"""
     __tablename__ = "customers"
@@ -170,6 +193,35 @@ class Quotation(db.Model):
         d["id"] = self.id
         return d
 
+    # 第二段資料模型：群組（空間標題）關係
+    # cascade delete-orphan：刪報價單或從集合移除群組時，連帶刪除群組與其細項
+    groups = db.relationship(
+        "QuotationGroup",
+        back_populates="quotation",
+        cascade="all, delete-orphan",
+        order_by="QuotationGroup.seq",
+    )
+
+    def recompute_totals(self):
+        """後端權威重算：依各群組細項重算 group.subtotal 與 pretax/tax/total。
+
+        規則：
+          group.subtotal = sum(該群 item.amount)
+          pretax = sum(group.subtotal)
+          tax = round(pretax * 0.05)
+          total = pretax + tax
+        工程費 engineering / 雜項 other 已停用，固定設為 0。
+        """
+        pretax = 0.0
+        for group in self.groups:
+            pretax += group.recompute_subtotal()
+        self.engineering = 0          # 停用，保留欄位歸零
+        self.other = 0                # 停用，保留欄位歸零
+        self.pretax = pretax
+        self.tax = round(pretax * 0.05)
+        self.total = self.pretax + self.tax
+        return self.total
+
 
 # 表名（中文工作表名稱）-> Model 對照，供 sheets_client compat 層使用
 SHEET_MODELS = {
@@ -207,6 +259,14 @@ class ShippingOrder(db.Model):
     total = db.Column(db.Float, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # 第二段資料模型：出貨品項（攤平快照）關係
+    items = db.relationship(
+        "ShippingItem",
+        back_populates="shipping_order",
+        cascade="all, delete-orphan",
+        order_by="ShippingItem.seq",
+    )
+
 
 class Purchase(db.Model):
     """進貨記錄 — 確認進貨後自動增加庫存"""
@@ -236,3 +296,102 @@ class Transaction(db.Model):
     ref_type = db.Column(db.String(50), default="")
     ref_id = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ======================================================================
+# 第二段資料模型：報價單群組 + 群組細項 + 出貨品項（三張新子表）
+# 舊 quotations.item1~3 / engineering / other 欄位保留不刪，僅停用，
+# 確保與線上正式系統共用的 Supabase 零破壞。
+# ======================================================================
+
+
+class QuotationGroup(db.Model):
+    """報價單群組（＝空間標題，如「主臥」「客廳」）"""
+    __tablename__ = "quotation_groups"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey("quotations.id"), nullable=False)
+    seq = db.Column(db.Integer, default=0)                                # 排序
+    title = db.Column(db.String(200), default="")                        # 空間標題
+    note = db.Column(db.Text, default="")                                # 群組備註
+    subtotal = db.Column(db.Float, default=0)                            # 群組小計（後端算）
+
+    quotation = db.relationship("Quotation", back_populates="groups")
+    items = db.relationship(
+        "QuotationItem",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        order_by="QuotationItem.seq",
+    )
+
+    def recompute_subtotal(self):
+        """重算群組小計：sum(該群每個 item.amount)，回傳小計。
+
+        每個細項 amount 先由 item.compute_amount() 重算：
+          數量可轉 float → qty * unit_price
+          數量為文字（如「乙式」）→ 採前端手填的 amount
+          is_gift=True → amount 強制 0
+        """
+        subtotal = 0.0
+        for item in self.items:
+            subtotal += item.compute_amount()
+        self.subtotal = subtotal
+        return subtotal
+
+
+class QuotationItem(db.Model):
+    """報價單群組內的細項"""
+    __tablename__ = "quotation_items"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("quotation_groups.id"), nullable=False)
+    seq = db.Column(db.Integer, default=0)                               # 排序
+    name = db.Column(db.String(300), default="")                        # 品名
+    qty_text = db.Column(db.String(50), default="")                     # 數量（可文字「乙式」或數字「2」）
+    unit_price = db.Column(db.Float, default=0)                         # 單價（可 0）
+    amount = db.Column(db.Float, default=0)                             # 金額
+    note = db.Column(db.Text, default="")                              # 備註
+    is_gift = db.Column(db.Boolean, default=False)                     # 是否為贈品
+
+    group = db.relationship("QuotationGroup", back_populates="items")
+
+    def compute_amount(self):
+        """後端權威算金額並寫回 self.amount，回傳金額。
+
+        規則：
+          is_gift=True → 0
+          qty_text 可轉 float → qty * unit_price
+          qty_text 為文字無法轉 → 採前端手填的 amount
+        """
+        if self.is_gift:
+            self.amount = 0
+            return 0.0
+        s = "" if self.qty_text is None else str(self.qty_text).strip()
+        # 僅在「可解析成數字」時用 qty*unit_price 覆蓋；否則沿用手填 amount
+        parsed = parse_qty(s)
+        # 區分「真的解析到數字」與「文字解析回 0」：空字串或非數字皆視為文字
+        is_numeric = s != "" and s.replace(",", "").lstrip("-").replace(".", "", 1).isdigit()
+        if is_numeric:
+            self.amount = parsed * (self.unit_price or 0)
+        else:
+            self.amount = self.amount or 0
+        return self.amount
+
+
+class ShippingItem(db.Model):
+    """出貨單品項（攤平快照）— 從報價單群組細項攤平複製，扣庫存依 qty_num"""
+    __tablename__ = "shipping_items"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    shipping_order_id = db.Column(db.Integer, db.ForeignKey("shipping_orders.id"), nullable=False)
+    seq = db.Column(db.Integer, default=0)                              # 排序
+    group_title = db.Column(db.String(200), default="")                # 來源群組標題（快照）
+    name = db.Column(db.String(300), default="")                       # 品名
+    qty_text = db.Column(db.String(50), default="")                    # 數量（原始文字）
+    qty_num = db.Column(db.Float, default=0)                           # 解析出的數字數量（扣庫存用，非數字則 0）
+    unit_price = db.Column(db.Float, default=0)                        # 單價
+    amount = db.Column(db.Float, default=0)                            # 金額
+    note = db.Column(db.Text, default="")                             # 備註
+    is_gift = db.Column(db.Boolean, default=False)                    # 是否為贈品
+
+    shipping_order = db.relationship("ShippingOrder", back_populates="items")

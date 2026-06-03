@@ -20,27 +20,25 @@
 
   <!-- 資訊卡片 -->
   <div class="row mb-4">
-    <div class="col-md-8">
+    <div class="col-md-10">
       <div class="card">
         <div class="card-body">
           <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-3">
               <p class="text-muted mb-1">報價單號</p>
               <p class="fw-bold">{{ order.quote_number }}</p>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-3">
               <p class="text-muted mb-1">出貨日期</p>
-              <p class="fw-bold">{{ order.ship_date or '-' }}</p>
+              <p class="fw-bold">{{ order.ship_date or '—' }}</p>
             </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-3">
               <p class="text-muted mb-1">客戶</p>
               <p class="fw-bold">{{ order.customer_name }}</p>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-3">
               <p class="text-muted mb-1">公司</p>
-              <p class="fw-bold">{{ order.company }}</p>
+              <p class="fw-bold">{{ order.company or '—' }}</p>
             </div>
           </div>
           {% if order.note %}
@@ -56,78 +54,78 @@
     </div>
   </div>
 
-  <!-- 品項明細表 -->
+  <!-- 品項明細（依 group_title 分組） -->
   <div class="row mb-4">
-    <div class="col-md-8">
+    <div class="col-md-10">
       <h5 class="mb-3">品項明細</h5>
-      <div class="table-responsive">
-        <table class="table table-sm">
-          <thead class="table-light">
-            <tr>
-              <th>品名</th>
-              <th class="text-end">數量</th>
-              <th class="text-end">單價</th>
-              <th class="text-end">小計</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if order.item1_name %}
-            <tr>
-              <td>{{ order.item1_name }}</td>
-              <td class="text-end">{{ order.item1_qty }}</td>
-              <td class="text-end">NT$ {{ "{:,.0f}".format(order.item1_price) }}</td>
-              <td class="text-end">NT$ {{ "{:,.0f}".format(order.item1_qty * order.item1_price) }}</td>
-            </tr>
-            {% endif %}
-            {% if order.item2_name %}
-            <tr>
-              <td>{{ order.item2_name }}</td>
-              <td class="text-end">{{ order.item2_qty }}</td>
-              <td class="text-end">NT$ {{ "{:,.0f}".format(order.item2_price) }}</td>
-              <td class="text-end">NT$ {{ "{:,.0f}".format(order.item2_qty * order.item2_price) }}</td>
-            </tr>
-            {% endif %}
-            {% if order.item3_name %}
-            <tr>
-              <td>{{ order.item3_name }}</td>
-              <td class="text-end">{{ order.item3_qty }}</td>
-              <td class="text-end">NT$ {{ "{:,.0f}".format(order.item3_price) }}</td>
-              <td class="text-end">NT$ {{ "{:,.0f}".format(order.item3_qty * order.item3_price) }}</td>
-            </tr>
-            {% endif %}
-          </tbody>
-        </table>
-      </div>
+      {% if grouped %}
+        {% for grp in grouped %}
+        <div class="mb-3">
+          <div class="bg-light px-3 py-2 rounded-top border-bottom">
+            <span class="fw-bold text-secondary">{{ grp.title }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0 border border-top-0 rounded-bottom">
+              <thead class="table-light">
+                <tr>
+                  <th>品名</th>
+                  <th class="text-center" style="width:90px">數量</th>
+                  <th class="text-end" style="width:110px">單價</th>
+                  <th class="text-end" style="width:110px">金額</th>
+                  <th style="width:120px">備註</th>
+                  <th class="text-center" style="width:60px">贈品</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in grp.items %}
+                <tr{% if item.is_gift %} class="table-success"{% endif %}>
+                  <td>{{ item.name }}</td>
+                  <td class="text-center">{{ item.qty_text }}</td>
+                  <td class="text-end">
+                    {% if item.unit_price %}NT$ {{ "{:,.0f}".format(item.unit_price) }}{% else %}—{% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if item.is_gift %}
+                      <span class="text-success">贈品</span>
+                    {% else %}
+                      NT$ {{ "{:,.0f}".format(item.amount) }}
+                    {% endif %}
+                  </td>
+                  <td class="text-muted small">{{ item.note or '' }}</td>
+                  <td class="text-center">
+                    {% if item.is_gift %}<span class="badge bg-success">贈品</span>{% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="text-muted">此出貨單無品項記錄。</p>
+      {% endif %}
     </div>
   </div>
 
   <!-- 費用小計 -->
   <div class="row mb-4">
-    <div class="col-md-8">
+    <div class="col-md-10">
       <div class="card bg-light">
         <div class="card-body">
           <div class="row text-end">
-            <div class="col-md-6 offset-md-6">
+            <div class="col-md-5 offset-md-7">
               <div class="mb-2">
-                <span class="text-muted">工程費</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.engineering) if order.engineering else 0 }}</span>
-              </div>
-              <div class="mb-2">
-                <span class="text-muted">其他</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.other) if order.other else 0 }}</span>
-              </div>
-              <hr>
-              <div class="mb-2">
-                <span class="text-muted">未稅合計</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.pretax) if order.pretax else 0 }}</span>
+                <span class="text-muted me-3">未稅合計</span>
+                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.pretax or 0) }}</span>
               </div>
               <div class="mb-3">
-                <span class="text-muted">稅額 (5%)</span>
-                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.tax) if order.tax else 0 }}</span>
+                <span class="text-muted me-3">稅額 (5%)</span>
+                <span class="fw-bold">NT$ {{ "{:,.0f}".format(order.tax or 0) }}</span>
               </div>
               <div class="border-top pt-2">
-                <span class="text-muted fs-5">含稅總金額</span>
-                <span class="fs-5 fw-bold text-primary">NT$ {{ "{:,.0f}".format(order.total) }}</span>
+                <span class="text-muted fs-5 me-3">含稅總金額</span>
+                <span class="fs-5 fw-bold text-primary">NT$ {{ "{:,.0f}".format(order.total or 0) }}</span>
               </div>
             </div>
           </div>
@@ -138,10 +136,11 @@
 
   <!-- 動作按鈕 -->
   <div class="row mb-4">
-    <div class="col-md-8">
+    <div class="col-md-10">
       {% if order.status == '待出貨' %}
         <form method="POST" action="{{ url_for('shipping.confirm_shipping', order_id=order.id) }}" class="d-inline">
-          <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('確認出貨後庫存將自動扣減且無法還原，確定嗎？')">確認出貨</button>
+          <button type="submit" class="btn btn-danger btn-lg"
+            onclick="return confirm('確認出貨後庫存將自動扣減且無法還原，確定嗎？')">確認出貨</button>
         </form>
         <!-- 返還報價單：僅待出貨可操作，不影響庫存 -->
         <form method="POST" action="{{ url_for('shipping.revert_shipping', order_id=order.id) }}" class="d-inline ms-2">
@@ -149,11 +148,11 @@
             onclick="return confirm('確定要返還成報價單草稿？此出貨單將被刪除')">返還報價單</button>
         </form>
         <div class="alert alert-danger mt-3">
-          <strong>⚠️ 重要提醒：</strong>點擊「確認出貨」後，系統將自動扣減庫存、記錄收入，此操作無法還原，請確認資訊無誤後再進行。
+          <strong>⚠️ 重要提醒：</strong>點擊「確認出貨」後，系統將自動扣減庫存（僅限數字數量、非贈品品項）、記錄收入，此操作無法還原，請確認資訊無誤後再進行。
         </div>
       {% elif order.status == '已出貨' %}
         <div class="alert alert-success">
-          <strong>✓ 已出貨</strong>庫存已於 {{ order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '—' }} 扣減，收入已記錄。
+          <strong>已出貨</strong>　庫存已扣減，收入已記錄。
         </div>
       {% endif %}
     </div>

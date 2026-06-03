@@ -5,67 +5,31 @@
 {% block content %}
 <div class="container mt-4">
   <div class="row mb-4">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-md-10 offset-md-1">
       <h1>建立出貨單</h1>
     </div>
   </div>
 
-  <!-- 報價單摘要卡片 -->
+  <!-- 報價單基本資訊 -->
   <div class="row mb-4">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-md-10 offset-md-1">
       <div class="card">
         <div class="card-header bg-light">
-          <h5 class="mb-0">報價單摘要</h5>
+          <h5 class="mb-0">報價單資訊</h5>
         </div>
         <div class="card-body">
-          <div class="row mb-3">
-            <div class="col-md-6">
+          <div class="row mb-2">
+            <div class="col-md-4">
               <p class="text-muted mb-1">報價單號</p>
               <p class="fw-bold">{{ quote.quote_number }}</p>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
               <p class="text-muted mb-1">客戶姓名</p>
               <p class="fw-bold">{{ quote.customer_name }}</p>
             </div>
-          </div>
-          <div class="row mb-3">
-            <div class="col-md-12">
+            <div class="col-md-4">
               <p class="text-muted mb-1">公司</p>
-              <p class="fw-bold">{{ quote.company }}</p>
-            </div>
-          </div>
-
-          <!-- 品項明細 -->
-          <div class="mb-3">
-            <p class="text-muted mb-2">品項明細</p>
-            <ul class="list-unstyled">
-              {% if quote.item1_name %}
-              <li class="mb-2">
-                <span class="fw-bold">{{ quote.item1_name }}</span>
-                <span class="text-muted">×{{ quote.item1_qty }} @ NT$ {{ "{:,.0f}".format(quote.item1_price) }}</span>
-              </li>
-              {% endif %}
-              {% if quote.item2_name %}
-              <li class="mb-2">
-                <span class="fw-bold">{{ quote.item2_name }}</span>
-                <span class="text-muted">×{{ quote.item2_qty }} @ NT$ {{ "{:,.0f}".format(quote.item2_price) }}</span>
-              </li>
-              {% endif %}
-              {% if quote.item3_name %}
-              <li class="mb-2">
-                <span class="fw-bold">{{ quote.item3_name }}</span>
-                <span class="text-muted">×{{ quote.item3_qty }} @ NT$ {{ "{:,.0f}".format(quote.item3_price) }}</span>
-              </li>
-              {% endif %}
-            </ul>
-          </div>
-
-          <hr class="my-3">
-
-          <div class="row">
-            <div class="col-md-6">
-              <p class="text-muted mb-1">含稅總金額</p>
-              <p class="fs-5 fw-bold text-primary">NT$ {{ "{:,.0f}".format(quote.total) }}</p>
+              <p class="fw-bold">{{ quote.company or '—' }}</p>
             </div>
           </div>
         </div>
@@ -73,9 +37,90 @@
     </div>
   </div>
 
+  <!-- 攤平品項預覽（依群組分組） -->
+  <div class="row mb-4">
+    <div class="col-md-10 offset-md-1">
+      <div class="card">
+        <div class="card-header bg-light">
+          <h5 class="mb-0">出貨品項預覽</h5>
+        </div>
+        <div class="card-body p-0">
+          {% if preview_groups %}
+            {% for grp in preview_groups %}
+            <div class="px-3 pt-3">
+              <p class="fw-bold text-secondary mb-2">{{ grp.title }}</p>
+            </div>
+            <div class="table-responsive px-3 pb-2">
+              <table class="table table-sm mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>品名</th>
+                    <th class="text-center" style="width:80px">數量</th>
+                    <th class="text-end" style="width:110px">單價</th>
+                    <th class="text-end" style="width:110px">金額</th>
+                    <th style="width:80px">備註</th>
+                    <th style="width:60px">贈品</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in grp.items %}
+                  <tr{% if item.is_gift %} class="table-success"{% endif %}>
+                    <td>{{ item.name }}</td>
+                    <td class="text-center">{{ item.qty_text }}</td>
+                    <td class="text-end">
+                      {% if item.unit_price %}NT$ {{ "{:,.0f}".format(item.unit_price) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end">
+                      {% if item.is_gift %}
+                        <span class="text-success">贈品</span>
+                      {% else %}
+                        NT$ {{ "{:,.0f}".format(item.amount) }}
+                      {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ item.note or '' }}</td>
+                    <td class="text-center">
+                      {% if item.is_gift %}<span class="badge bg-success">贈品</span>{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if not loop.last %}<hr class="my-0">{% endif %}
+            {% endfor %}
+
+            <!-- 含稅總金額 -->
+            <div class="px-3 py-3 border-top">
+              <div class="row justify-content-end">
+                <div class="col-auto text-end">
+                  <span class="text-muted me-3">未稅合計</span>
+                  <span class="fw-bold">NT$ {{ "{:,.0f}".format(quote.pretax or 0) }}</span>
+                </div>
+              </div>
+              <div class="row justify-content-end mt-1">
+                <div class="col-auto text-end">
+                  <span class="text-muted me-3">稅額 (5%)</span>
+                  <span class="fw-bold">NT$ {{ "{:,.0f}".format(quote.tax or 0) }}</span>
+                </div>
+              </div>
+              <div class="row justify-content-end mt-1">
+                <div class="col-auto text-end">
+                  <span class="text-muted me-3 fs-5">含稅總金額</span>
+                  <span class="fs-5 fw-bold text-primary">NT$ {{ "{:,.0f}".format(quote.total or 0) }}</span>
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="p-3 text-muted">此報價單尚無群組品項。</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 建立出貨單表單 -->
   <div class="row mb-4">
-    <div class="col-md-8 offset-md-2">
+    <div class="col-md-10 offset-md-1">
       <form method="POST" action="{{ url_for('shipping.new_shipping', quotation_id=quote.id) }}">
         <div class="mb-3">
           <label for="ship_date" class="form-label">出貨日期 <span class="text-danger">*</span></label>
@@ -84,11 +129,11 @@
 
         <div class="mb-3">
           <label for="note" class="form-label">備註</label>
-          <textarea class="form-control" id="note" name="note" rows="4" placeholder="輸入出貨單備註..."></textarea>
+          <textarea class="form-control" id="note" name="note" rows="3" placeholder="輸入出貨單備註..."></textarea>
         </div>
 
         <div class="alert alert-info mb-3">
-          <strong>提示：</strong>建立後可在出貨單頁面按「確認出貨」，確認後庫存自動扣減並記入收入帳。
+          <strong>提示：</strong>建立後可在出貨單頁面按「確認出貨」，確認後庫存自動扣減（僅限數字數量的非贈品品項）並記入收入帳。
         </div>
 
         <div class="d-flex gap-2">

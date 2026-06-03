@@ -1,9 +1,10 @@
 import datetime
+import json
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from auth import login_required
 from sheets_client import get_sheet, append_row
 from config import COMPANY_OPTIONS
-from db import db
+from db import db, parse_qty
 
 quotations_bp = Blueprint("quotations", __name__, url_prefix="/quotations")
 
@@ -19,6 +20,45 @@ def safe_float(val):
         return float(str(val or "0").replace(",", "").strip() or "0")
     except:
         return 0.0
+
+
+def _build_groups_from_payload(q, payload):
+    """依 payload 的 groups 結構，為報價單 q 建立 QuotationGroup + QuotationItem。
+
+    後端權威：金額一律由 model 的 compute_amount / recompute_totals 重算，
+    前端送的 amount 僅在「數量為非數字文字（如乙式）」時才被採用。
+    呼叫前 q 的 groups 應已清空（或為新建未 append）。
+    """
+    from db import QuotationGroup, QuotationItem
+    groups = payload.get("groups") or []
+    for gi, g in enumerate(groups):
+        title = (g.get("title") or "").strip()
+        items = g.get("items") or []
+        # 標題與品項皆空的群組略過，避免存入空群組
+        if not title and not items:
+            continue
+        group = QuotationGroup(
+            seq=gi,
+            title=title,
+            note=(g.get("note") or "").strip(),
+        )
+        for ii, it in enumerate(items):
+            name = (it.get("name") or "").strip()
+            qty_text = str(it.get("qty_text") or "").strip()
+            # 名稱與數量皆空 → 視為空白列，略過
+            if not name and not qty_text:
+                continue
+            item = QuotationItem(
+                seq=ii,
+                name=name,
+                qty_text=qty_text,
+                unit_price=safe_float(it.get("unit_price")),
+                amount=safe_float(it.get("amount")),   # 僅在數量為文字時會被採用
+                note=(it.get("note") or "").strip(),
+                is_gift=bool(it.get("is_gift")),
+            )
+            group.items.append(item)
+        q.groups.append(group)
 
 @quotations_bp.route("/")
 @login_required
@@ -37,55 +77,36 @@ def list_quotes():
 @login_required
 def new_quote():
     if request.method == "POST":
-        f = request.form
-        company = f.get("company_title", "")
+        from db import Quotation
+        # 第二段：前端動態表單序列化成 hidden input name="payload" 的 JSON
+        try:
+            payload = json.loads(request.form.get("payload", "") or "{}")
+        except (ValueError, TypeError):
+            flash("❌ 報價單資料格式錯誤，請重新送出")
+            return redirect(url_for("quotations.new_quote"))
+
+        company = (payload.get("company") or "").strip()
         tax_id = next((c["tax_id"] for c in COMPANY_OPTIONS if c["name"] == company), "")
 
-        items_data = []
-        for i in range(1, 4):
-            name  = f.get(f"item{i}_name", "").strip()
-            qty   = safe_float(f.get(f"item{i}_qty", "0"))
-            price = safe_float(f.get(f"item{i}_price", "0"))
-            sub   = qty * price
-            items_data.append({"name": name, "qty": qty, "price": price, "sub": sub})
+        q = Quotation(
+            quote_number=next_quote_number(),
+            quote_date=(payload.get("quote_date") or datetime.date.today().isoformat()),
+            company=company,
+            tax_id=tax_id,
+            customer_name=(payload.get("customer_name") or "").strip(),
+            customer_phone=(payload.get("customer_phone") or "").strip(),
+            customer_address=(payload.get("customer_address") or "").strip(),
+            install_date=(payload.get("install_date") or "").strip(),
+            note=(payload.get("note") or "").strip(),
+            status="草稿",
+        )
+        # 建立群組與細項，金額由後端權威重算
+        _build_groups_from_payload(q, payload)
+        q.recompute_totals()
 
-        engineering = safe_float(f.get("engineering", "0"))
-        other       = safe_float(f.get("other", "0"))
-        pretax      = sum(it["sub"] for it in items_data) + engineering + other
-        tax         = round(pretax * 0.05)
-        total       = pretax + tax
-
-        data = {
-            "報價單編號":  next_quote_number(),
-            "報價日期":   f.get("quote_date", datetime.date.today().isoformat()),
-            "公司抬頭":   company,
-            "統編":      tax_id,
-            "客戶姓名":   f.get("customer_name", ""),
-            "客戶電話":   f.get("customer_phone", ""),
-            "客戶地址":   f.get("customer_address", ""),
-            "品項1名稱":  items_data[0]["name"],
-            "品項1數量":  items_data[0]["qty"],
-            "品項1單價":  items_data[0]["price"],
-            "品項1小計":  items_data[0]["sub"],
-            "品項2名稱":  items_data[1]["name"],
-            "品項2數量":  items_data[1]["qty"],
-            "品項2單價":  items_data[1]["price"],
-            "品項2小計":  items_data[1]["sub"],
-            "品項3名稱":  items_data[2]["name"],
-            "品項3數量":  items_data[2]["qty"],
-            "品項3單價":  items_data[2]["price"],
-            "品項3小計":  items_data[2]["sub"],
-            "工程費":     engineering,
-            "其他費用":   other,
-            "未稅合計":   pretax,
-            "稅額(5%)":  tax,
-            "含稅總金額":  total,
-            "預計安裝日期": f.get("install_date", ""),
-            "備註":      f.get("notes", ""),
-            "狀態":      "草稿",
-        }
-        append_row("報價單記錄", data)
-        flash(f"✅ 報價單 {data['報價單編號']} 已建立，含稅總金額 NT${total:,.0f}")
+        db.session.add(q)
+        db.session.commit()
+        flash(f"✅ 報價單 {q.quote_number} 已建立，含稅總金額 NT${q.total:,.0f}")
         return redirect(url_for("quotations.list_quotes"))
 
     customers = get_sheet("顧客資料")
@@ -121,59 +142,40 @@ def edit_quote(quote_id):
         return redirect(url_for("quotations.detail", quote_id=quote_id))
 
     if request.method == "POST":
-        f = request.form
+        # 第二段：同樣解析 payload JSON
+        try:
+            payload = json.loads(request.form.get("payload", "") or "{}")
+        except (ValueError, TypeError):
+            flash("❌ 報價單資料格式錯誤，請重新送出")
+            return redirect(url_for("quotations.edit_quote", quote_id=quote_id))
+
         # 公司抬頭與統編
-        company = f.get("company_title", "").strip()
+        company = (payload.get("company") or "").strip()
         tax_id = next((c["tax_id"] for c in COMPANY_OPTIONS if c["name"] == company), "")
 
-        # 重新計算品項小計
-        items_data = []
-        for i in range(1, 4):
-            name  = f.get(f"item{i}_name", "").strip()
-            qty   = safe_float(f.get(f"item{i}_qty", "0"))
-            price = safe_float(f.get(f"item{i}_price", "0"))
-            sub   = qty * price
-            items_data.append({"name": name, "qty": qty, "price": price, "sub": sub})
+        # 更新報價單表頭欄位
+        q.company          = company
+        q.tax_id           = tax_id
+        q.quote_date       = (payload.get("quote_date") or q.quote_date)
+        q.customer_name    = (payload.get("customer_name") or "").strip()
+        q.customer_phone   = (payload.get("customer_phone") or "").strip()
+        q.customer_address = (payload.get("customer_address") or "").strip()
+        q.install_date     = (payload.get("install_date") or "").strip()
+        q.note             = (payload.get("note") or "").strip()
 
-        engineering = safe_float(f.get("engineering", "0"))
-        other       = safe_float(f.get("other", "0"))
-        pretax      = sum(it["sub"] for it in items_data) + engineering + other
-        tax         = round(pretax * 0.05)
-        total       = pretax + tax
+        # 先刪掉舊群組（cascade 連帶刪除細項），再依 payload 重建
+        q.groups.clear()
+        db.session.flush()   # 確保 delete-orphan 先生效，避免新舊 seq 衝突
+        _build_groups_from_payload(q, payload)
+        q.recompute_totals()
 
-        # 更新 ORM 欄位
-        q.company        = company
-        q.tax_id         = tax_id
-        q.quote_date     = f.get("quote_date", q.quote_date)
-        q.customer_name  = f.get("customer_name", "").strip()
-        q.customer_phone = f.get("customer_phone", "").strip()
-        q.customer_address = f.get("customer_address", "").strip()
-        q.item1_name = items_data[0]["name"]
-        q.item1_qty  = items_data[0]["qty"]
-        q.item1_price = items_data[0]["price"]
-        q.item1_sub  = items_data[0]["sub"]
-        q.item2_name = items_data[1]["name"]
-        q.item2_qty  = items_data[1]["qty"]
-        q.item2_price = items_data[1]["price"]
-        q.item2_sub  = items_data[1]["sub"]
-        q.item3_name = items_data[2]["name"]
-        q.item3_qty  = items_data[2]["qty"]
-        q.item3_price = items_data[2]["price"]
-        q.item3_sub  = items_data[2]["sub"]
-        q.engineering = engineering
-        q.other       = other
-        q.pretax      = pretax
-        q.tax         = tax
-        q.total       = total
-        q.install_date = f.get("install_date", "").strip()
-        q.note         = f.get("notes", "").strip()
         # 狀態：允許在草稿編輯頁直接定案（例如改為「已確認」）；僅接受合法值
-        new_status = f.get("status", "").strip()
+        new_status = (payload.get("status") or "").strip()
         if new_status in ("草稿", "已確認", "已完成", "已取消"):
             q.status = new_status
 
         db.session.commit()
-        flash(f"✅ 報價單 {q.quote_number} 已更新，含稅總金額 NT${total:,.0f}")
+        flash(f"✅ 報價單 {q.quote_number} 已更新，含稅總金額 NT${q.total:,.0f}")
         return redirect(url_for("quotations.detail", quote_id=quote_id))
 
     # GET：提供下拉選單資料（比照 new_quote）
@@ -194,7 +196,25 @@ def print_quote(quote_id):
     if not q:
         flash("找不到該報價單")
         return redirect(url_for("quotations.list_quotes"))
-    return render_template("quotations/print.html", q=q)
+    # 報價日期轉民國年（格式「民國 NNN/M/D」）；解析失敗則回傳原字串
+    roc_date = _to_roc_date(q.quote_date)
+    return render_template("quotations/print.html", q=q, roc_date=roc_date)
+
+
+def _to_roc_date(date_str):
+    """把西元日期字串（YYYY-MM-DD 或 YYYY/M/D）轉成「民國 NNN/M/D」。
+
+    無法解析時回傳原字串（避免列印頁出錯）。
+    """
+    if not date_str:
+        return ""
+    s = str(date_str).strip().replace("/", "-")
+    parts = s.split("-")
+    try:
+        y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+        return f"民國 {y - 1911}/{m}/{d}"
+    except (ValueError, IndexError):
+        return str(date_str)
 
 
 @quotations_bp.route("/delete", methods=["POST"])
@@ -268,21 +288,25 @@ def item_prices():
     item_name = request.args.get("item", "").strip()
     if not item_name:
         return jsonify([])
-    from db import Quotation as Q
+    # 第二段：改查 QuotationItem 歷史單價（依品名比對），不再查舊 item1~3 欄位
+    from db import QuotationItem, QuotationGroup, Quotation as Q
     results = []
     seen = set()
-    quotes = Q.query.order_by(Q.id.desc()).limit(100).all()
-    for q in quotes:
-        for name_attr, price_attr in [
-            ("item1_name", "item1_price"),
-            ("item2_name", "item2_price"),
-            ("item3_name", "item3_price"),
-        ]:
-            if getattr(q, name_attr, "") == item_name:
-                price = getattr(q, price_attr, 0) or 0
-                if price and price not in seen:
-                    seen.add(price)
-                    results.append({"price": price, "date": q.quote_date or ""})
+    # 依細項 id 由新到舊，join 回報價單取報價日期
+    rows = (
+        db.session.query(QuotationItem, Q.quote_date)
+        .join(QuotationGroup, QuotationItem.group_id == QuotationGroup.id)
+        .join(Q, QuotationGroup.quotation_id == Q.id)
+        .filter(QuotationItem.name == item_name)
+        .order_by(QuotationItem.id.desc())
+        .limit(100)
+        .all()
+    )
+    for item, quote_date in rows:
+        price = item.unit_price or 0
+        if price and price not in seen:
+            seen.add(price)
+            results.append({"price": price, "date": quote_date or ""})
         if len(results) >= 5:
             break
     return jsonify(results)

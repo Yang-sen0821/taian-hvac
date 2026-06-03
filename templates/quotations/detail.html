@@ -67,7 +67,7 @@
             </div>
         </div>
 
-        <!-- 品項明細表格 -->
+        <!-- 品項明細表格（依群組渲染） -->
         <div class="mb-4">
             <h6 class="text-uppercase text-muted small mb-3 fw-bold">品項明細</h6>
             <div class="table-responsive">
@@ -77,56 +77,41 @@
                             <th>品名 / 規格</th>
                             <th class="text-center" style="width: 100px;">數量</th>
                             <th class="text-end" style="width: 130px;">單價 (NT$)</th>
-                            <th class="text-end" style="width: 130px;">小計 (NT$)</th>
+                            <th class="text-end" style="width: 130px;">金額 (NT$)</th>
+                            <th style="width: 140px;">備註</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% set items = [
-                            (q.item1_name, q.item1_qty, q.item1_price),
-                            (q.item2_name, q.item2_qty, q.item2_price),
-                            (q.item3_name, q.item3_qty, q.item3_price)
-                        ] %}
-                        {% set has_item = namespace(found=false) %}
-                        {% for name, qty, price in items %}
-                            {% if name %}
-                            {% set has_item.found = true %}
-                            <tr>
-                                <td>{{ name }}</td>
-                                <td class="text-center">{{ qty or 0 }}</td>
-                                <td class="text-end">{{ '{:,.0f}'.format(price or 0) }}</td>
-                                <td class="text-end fw-semibold">
-                                    {{ '{:,.0f}'.format((qty or 0) * (price or 0)) }}
-                                </td>
-                            </tr>
-                            {% endif %}
+                        {% for g in q.groups %}
+                        <!-- 群組標題列 -->
+                        <tr class="table-light">
+                            <td colspan="5" class="fw-bold">
+                                <i class="bi bi-grid-3x3-gap"></i> {{ g.title or '（未命名空間）' }}
+                                {% if g.note %}<span class="text-muted small fw-normal ms-2">{{ g.note }}</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% for it in g.items %}
+                        <tr>
+                            <td>
+                                {{ it.name }}
+                                {% if it.is_gift %}<span class="badge bg-success ms-1">贈品</span>{% endif %}
+                            </td>
+                            <td class="text-center">{{ it.qty_text or '' }}</td>
+                            <td class="text-end">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
+                            <td class="text-end fw-semibold">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
+                            <td class="small text-muted">{{ it.note or '' }}</td>
+                        </tr>
                         {% endfor %}
-                        {% if not has_item.found %}
+                        <!-- 群組小計列 -->
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-3">無品項記錄</td>
+                            <td colspan="4" class="text-end text-muted">{{ g.title or '空間' }} 小計</td>
+                            <td class="text-end fw-semibold">NT$ {{ '{:,.0f}'.format(g.subtotal or 0) }}</td>
                         </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 費用小計 -->
-        <div class="row justify-content-end mb-4">
-            <div class="col-12 col-md-6 col-lg-5">
-                <table class="table table-sm table-borderless mb-0">
-                    <tbody>
-                        {% if q.engineering and q.engineering > 0 %}
+                        {% else %}
                         <tr>
-                            <td class="text-muted">工程費</td>
-                            <td class="text-end">NT$ {{ '{:,.0f}'.format(q.engineering) }}</td>
+                            <td colspan="5" class="text-center text-muted py-3">無品項記錄</td>
                         </tr>
-                        {% endif %}
-                        {% if q.other and q.other > 0 %}
-                        <tr>
-                            <td class="text-muted">其他費用</td>
-                            <td class="text-end">NT$ {{ '{:,.0f}'.format(q.other) }}</td>
-                        </tr>
-                        {% endif %}
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>

@@ -271,7 +271,7 @@
             <div>FB：泰安電器水電行</div>
             <div>IG：taian_tien.chi.hanh</div>
             <div style="margin-top:4px; font-size:11px; color:#777;">
-                報價單號：{{ q.quote_number }}&nbsp;&nbsp;|&nbsp;&nbsp;日期：{{ q.quote_date }}
+                報價單號：{{ q.quote_number }}&nbsp;&nbsp;|&nbsp;&nbsp;日期：{{ roc_date or q.quote_date }}
             </div>
         </div>
     </div>
@@ -304,44 +304,33 @@
             </tr>
         </thead>
         <tbody>
-            {% set rows = [
-                (q.item1_name, q.item1_qty, q.item1_price, q.item1_sub),
-                (q.item2_name, q.item2_qty, q.item2_price, q.item2_sub),
-                (q.item3_name, q.item3_qty, q.item3_price, q.item3_sub)
-            ] %}
-            {% set has_item = namespace(found=false) %}
-            {% for iname, iqty, iprice, isub in rows %}
-                {% if iname %}
-                {% set has_item.found = true %}
-                <tr>
-                    <td class="name">{{ iname }}</td>
-                    <td class="center">{{ iqty|int if iqty and iqty == iqty|int else iqty or 0 }}</td>
-                    <td class="right">{{ '{:,.0f}'.format(iprice or 0) }}</td>
-                    <td class="right">{{ '{:,.0f}'.format(isub or 0) }}</td>
-                    <td></td><!-- 備註欄位保留（第二段再填入） -->
-                </tr>
-                {% endif %}
+            {% for g in q.groups %}
+            <!-- 群組標題列（跨欄） -->
+            <tr>
+                <td colspan="5" style="background:#f2f2f2; font-weight:700;">
+                    {{ g.title or '（未命名空間）' }}{% if g.note %}　<span style="font-weight:400; color:#666; font-size:11px;">{{ g.note }}</span>{% endif %}
+                </td>
+            </tr>
+            {% for it in g.items %}
+            <tr>
+                <td class="name">{{ it.name }}{% if it.is_gift %}（贈品）{% endif %}</td>
+                <td class="center">{{ it.qty_text or '' }}</td>
+                <td class="right">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
+                <td class="right">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
+                <td>{{ it.note or '' }}</td>
+            </tr>
             {% endfor %}
-            {% if not has_item.found %}
+            <!-- 群組小計列 -->
+            <tr>
+                <td colspan="3" class="right" style="color:#555;">{{ g.title or '空間' }} 小計</td>
+                <td class="right" style="font-weight:700;">{{ '{:,.0f}'.format(g.subtotal or 0) }}</td>
+                <td></td>
+            </tr>
+            {% else %}
             <tr>
                 <td colspan="5" style="text-align:center; color:#aaa;">（無品項）</td>
             </tr>
-            {% endif %}
-            <!-- 工程費列（有值才顯示） -->
-            {% if q.engineering and q.engineering > 0 %}
-            <tr>
-                <td colspan="3" class="right" style="color:#555;">工程費</td>
-                <td class="right">{{ '{:,.0f}'.format(q.engineering) }}</td>
-                <td></td>
-            </tr>
-            {% endif %}
-            {% if q.other and q.other > 0 %}
-            <tr>
-                <td colspan="3" class="right" style="color:#555;">其他費用</td>
-                <td class="right">{{ '{:,.0f}'.format(q.other) }}</td>
-                <td></td>
-            </tr>
-            {% endif %}
+            {% endfor %}
         </tbody>
     </table>
 

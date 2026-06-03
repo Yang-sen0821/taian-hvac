@@ -15,6 +15,8 @@
 
 <form method="POST" action="/quotations/{{ q.id }}/edit" id="quotationForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <!-- 動態表單序列化後寫入此 hidden input -->
+    <input type="hidden" name="payload" id="payload">
 
     <!-- Section 1：報價資訊 -->
     <div class="card shadow-sm mb-4">
@@ -45,9 +47,7 @@
                         <option value="">— 請選擇公司 —</option>
                         {% for c in companies %}
                         <option value="{{ c.name }}" data-tax-id="{{ c.tax_id }}"
-                            {% if q.company == c.name %}selected{% endif %}>
-                            {{ c.name }}
-                        </option>
+                            {% if q.company == c.name %}selected{% endif %}>{{ c.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -86,104 +86,43 @@
         </div>
     </div>
 
-    <!-- Section 3：品項明細 -->
+    <!-- Section 3：品項明細（群組式動態表單） -->
     <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light fw-semibold">
-            <i class="bi bi-list-ul"></i> 品項明細
+        <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-ul"></i> 品項明細（依空間分組）</span>
+            <button type="button" class="btn btn-sm btn-primary" id="addGroupBtn">
+                <i class="bi bi-plus-lg"></i> 新增空間
+            </button>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="min-width: 200px;">品名 / 規格</th>
-                            <th style="width: 110px;" class="text-center">數量</th>
-                            <th style="width: 140px;" class="text-center">單價 (NT$)</th>
-                            <th style="width: 140px;" class="text-end">小計 (NT$)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% set item_rows = [
-                            (1, q.item1_name, q.item1_qty, q.item1_price),
-                            (2, q.item2_name, q.item2_qty, q.item2_price),
-                            (3, q.item3_name, q.item3_qty, q.item3_price)
-                        ] %}
-                        {% for i, iname, iqty, iprice in item_rows %}
-                        <tr>
-                            <td>
-                                <input type="text" class="form-control" id="item{{ i }}_name" name="item{{ i }}_name"
-                                       value="{{ iname or '' }}" placeholder="品名或規格">
-                            </td>
-                            <td>
-                                <input type="number" class="form-control text-center item-qty" id="item{{ i }}_qty"
-                                       name="item{{ i }}_qty" min="0" step="1"
-                                       value="{{ iqty or 0 }}"
-                                       data-row="{{ i }}">
-                            </td>
-                            <td>
-                                <input type="number" class="form-control text-end item-price" id="item{{ i }}_price"
-                                       name="item{{ i }}_price" min="0" step="1"
-                                       value="{{ iprice or 0 }}"
-                                       data-row="{{ i }}">
-                            </td>
-                            <td class="text-end fw-semibold">
-                                <span id="item{{ i }}_subtotal" class="text-muted">0</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+            <div id="groupsContainer"></div>
+            <p class="text-muted small mb-0">提示：數量可填數字（自動算金額）或文字「乙式」（金額請手動輸入）。勾選「贈品」金額歸 0。</p>
         </div>
     </div>
 
-    <!-- Section 4：費用小計 -->
+    <!-- Section 4：合計 -->
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-light fw-semibold">
-            <i class="bi bi-calculator"></i> 費用小計
+            <i class="bi bi-calculator"></i> 合計
         </div>
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-12 col-md-6">
-                    <label for="engineering" class="form-label fw-semibold">工程費 (NT$)</label>
-                    <input type="number" class="form-control form-control-lg text-end" id="engineering"
-                           name="engineering" min="0" step="1" value="{{ q.engineering or 0 }}">
-                </div>
-                <div class="col-12 col-md-6">
-                    <label for="other" class="form-label fw-semibold">其他費用 (NT$)</label>
-                    <input type="number" class="form-control form-control-lg text-end" id="other"
-                           name="other" min="0" step="1" value="{{ q.other or 0 }}">
-                </div>
-            </div>
-
-            <hr class="my-4">
-
             <div class="row justify-content-end">
                 <div class="col-12 col-md-5">
                     <table class="table table-sm mb-0">
                         <tbody>
                             <tr>
                                 <td class="text-muted">未稅合計</td>
-                                <td class="text-end fw-semibold">
-                                    NT$ <span id="subtotal_display">0</span>
-                                    <input type="hidden" id="subtotal" name="subtotal" value="0">
-                                </td>
+                                <td class="text-end fw-semibold">NT$ <span id="subtotal_display">0</span></td>
                             </tr>
                             <tr>
                                 <td class="text-muted">稅額 5%</td>
-                                <td class="text-end fw-semibold">
-                                    NT$ <span id="tax_display">0</span>
-                                    <input type="hidden" id="tax_amount" name="tax_amount" value="0">
-                                </td>
+                                <td class="text-end fw-semibold">NT$ <span id="tax_display">0</span></td>
                             </tr>
                             <tr class="table-light border-top">
                                 <td class="fw-bold">含稅總金額</td>
                                 <td class="text-end">
                                     <span id="total_display"
-                                          style="font-size: 1.6rem; font-weight: 700; color: #dc3545;">
-                                        NT$ 0
-                                    </span>
-                                    <input type="hidden" id="total_with_tax" name="total_with_tax" value="0">
+                                          style="font-size: 1.6rem; font-weight: 700; color: #dc3545;">NT$ 0</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -222,63 +161,338 @@
     </div>
 </form>
 
+<!-- 常用空間標題 datalist（可自由打字） -->
+<datalist id="spaceOptions">
+    <option value="客廳"><option value="主臥"><option value="餐廳"><option value="書房">
+    <option value="廚房"><option value="陽台"><option value="辦公室">
+</datalist>
+
 <script>
+// ====================================================
+// 0. 既有資料預填：把 q.groups 轉成 INITIAL_GROUPS
+// ====================================================
+window.INITIAL_GROUPS = [
+    {% for g in q.groups %}
+    {
+        title: {{ (g.title or '')|tojson }},
+        note: {{ (g.note or '')|tojson }},
+        items: [
+            {% for it in g.items %}
+            {
+                name: {{ (it.name or '')|tojson }},
+                qty_text: {{ (it.qty_text or '')|tojson }},
+                unit_price: {{ it.unit_price or 0 }},
+                amount: {{ it.amount or 0 }},
+                note: {{ (it.note or '')|tojson }},
+                is_gift: {{ 'true' if it.is_gift else 'false' }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const SPACE_PRESETS = ['客廳','主臥','餐廳','書房','廚房','陽台','辦公室'];
+
 // ====================================================
 // 1. 公司切換 → 統編自動填入
 // ====================================================
 const companies = {{ companies|tojson }};
-
 document.getElementById('company_title').addEventListener('change', function() {
     const selected = this.value;
     const taxIdInput = document.getElementById('tax_id');
-    if (!selected) {
-        taxIdInput.value = '';
-        return;
-    }
     const company = companies.find(c => c.name === selected);
     taxIdInput.value = company ? (company.tax_id || '') : '';
 });
 
 // ====================================================
-// 2. 品項即時計算
+// 2. 群組 / 品項 動態表單
 // ====================================================
-function formatNumber(n) {
-    return n.toLocaleString('zh-TW');
+const groupsContainer = document.getElementById('groupsContainer');
+
+function formatNumber(n) { return (n || 0).toLocaleString('zh-TW'); }
+
+function qtyIsNumeric(s) {
+    if (s === null || s === undefined) return false;
+    s = String(s).trim().replace(/,/g, '');
+    if (s === '') return false;
+    return !isNaN(Number(s));
 }
 
-function calcAll() {
-    let itemsTotal = 0;
+function buildItemRow(data) {
+    data = data || {};
+    const tr = document.createElement('tr');
+    tr.className = 'item-row';
+    tr.innerHTML = `
+        <td>
+            <div class="position-relative">
+                <input type="text" class="form-control item-name" autocomplete="off"
+                       placeholder="打字搜尋品項…">
+                <div class="list-group position-absolute w-100 shadow-sm item-dropdown"
+                     style="z-index:1000; display:none; max-height:220px; overflow-y:auto;"></div>
+            </div>
+            <div class="mt-1 small text-danger stock-warning"></div>
+        </td>
+        <td><input type="text" class="form-control text-center item-qty" placeholder="2 或 乙式"></td>
+        <td><input type="number" class="form-control text-end item-price" min="0" step="1" value="0"></td>
+        <td><input type="number" class="form-control text-end item-amount" min="0" step="1" value="0"></td>
+        <td><input type="text" class="form-control item-note" placeholder="備註"></td>
+        <td class="text-center">
+            <input type="checkbox" class="form-check-input item-gift">
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger del-item-btn" title="刪除品項">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>`;
+    tr.querySelector('.item-name').value = data.name || '';
+    tr.querySelector('.item-qty').value = (data.qty_text !== undefined && data.qty_text !== null) ? data.qty_text : '';
+    tr.querySelector('.item-price').value = data.unit_price || 0;
+    tr.querySelector('.item-amount').value = data.amount || 0;
+    tr.querySelector('.item-note').value = data.note || '';
+    tr.querySelector('.item-gift').checked = !!data.is_gift;
+    bindItemRow(tr);
+    return tr;
+}
 
-    for (let i = 1; i <= 3; i++) {
-        const qty   = parseFloat(document.getElementById('item' + i + '_qty').value)   || 0;
-        const price = parseFloat(document.getElementById('item' + i + '_price').value) || 0;
-        const sub   = qty * price;
-        itemsTotal += sub;
+function bindItemRow(tr) {
+    const qtyEl   = tr.querySelector('.item-qty');
+    const priceEl = tr.querySelector('.item-price');
+    const amountEl= tr.querySelector('.item-amount');
+    const giftEl  = tr.querySelector('.item-gift');
+    const nameEl  = tr.querySelector('.item-name');
+    const dd      = tr.querySelector('.item-dropdown');
+    const warn    = tr.querySelector('.stock-warning');
 
-        const subtotalEl = document.getElementById('item' + i + '_subtotal');
-        subtotalEl.textContent = formatNumber(sub);
-        subtotalEl.classList.toggle('text-muted', sub === 0);
+    function recalcRow() {
+        if (giftEl.checked) {
+            amountEl.value = 0;
+            amountEl.readOnly = true;
+            qtyEl.disabled = true;
+            priceEl.disabled = true;
+        } else {
+            amountEl.readOnly = false;
+            qtyEl.disabled = false;
+            priceEl.disabled = false;
+            if (qtyIsNumeric(qtyEl.value)) {
+                const qty = Number(String(qtyEl.value).replace(/,/g,'')) || 0;
+                const price = parseFloat(priceEl.value) || 0;
+                amountEl.value = qty * price;
+                amountEl.readOnly = true;
+            } else {
+                amountEl.readOnly = false;
+            }
+        }
+        calcAll();
     }
 
-    const engineering = parseFloat(document.getElementById('engineering').value) || 0;
-    const other       = parseFloat(document.getElementById('other').value)       || 0;
+    qtyEl.addEventListener('input', recalcRow);
+    priceEl.addEventListener('input', recalcRow);
+    amountEl.addEventListener('input', calcAll);
+    giftEl.addEventListener('change', recalcRow);
+    tr.querySelector('.del-item-btn').addEventListener('click', () => { tr.remove(); calcAll(); });
 
-    const subtotal = itemsTotal + engineering + other;
-    const tax      = Math.round(subtotal * 0.05);
-    const total    = subtotal + tax;
+    let itemTimeout = null;
+    nameEl.addEventListener('input', function() {
+        clearTimeout(itemTimeout);
+        warn.textContent = '';
+        const qv = this.value.trim();
+        if (qv.length < 1) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
+        itemTimeout = setTimeout(() => {
+            fetch('/quotations/api/inventory-search?q=' + encodeURIComponent(qv))
+                .then(r => r.json())
+                .then(data => {
+                    dd.innerHTML = '';
+                    if (!data || data.length === 0) { dd.style.display = 'none'; return; }
+                    data.forEach(it => {
+                        const opt = document.createElement('button');
+                        opt.type = 'button';
+                        opt.className = 'list-group-item list-group-item-action text-start';
+                        const badge = it.type === '冷氣' ? 'bg-warning text-dark' : 'bg-success';
+                        opt.innerHTML = '<span class="fw-semibold">' + it.name + '</span>' +
+                            ' <span class="badge ' + badge + ' ms-1">' + it.type + '</span>' +
+                            ' <span class="text-muted small ms-1">庫存 ' + it.stock + '</span>';
+                        opt.addEventListener('click', () => {
+                            nameEl.value = it.name;
+                            dd.style.display = 'none'; dd.innerHTML = '';
+                            const stock = parseInt(it.stock) || 0;
+                            warn.textContent = (stock <= 2) ? '⚠️ 庫存僅剩 ' + stock + '，請先叫貨' : '';
+                        });
+                        dd.appendChild(opt);
+                    });
+                    dd.style.display = 'block';
+                })
+                .catch(() => { dd.style.display = 'none'; });
+        }, 300);
+    });
+    nameEl.addEventListener('blur', function() {
+        setTimeout(() => { dd.style.display = 'none'; }, 200);
+    });
 
-    document.getElementById('subtotal_display').textContent = formatNumber(subtotal);
-    document.getElementById('tax_display').textContent      = formatNumber(tax);
-    document.getElementById('total_display').textContent    = 'NT$ ' + formatNumber(total);
-
-    document.getElementById('subtotal').value       = subtotal;
-    document.getElementById('tax_amount').value     = tax;
-    document.getElementById('total_with_tax').value = total;
+    recalcRow();
 }
 
-document.querySelectorAll('.item-qty, .item-price, #engineering, #other')
-    .forEach(el => el.addEventListener('input', calcAll));
+function buildGroup(data) {
+    data = data || {};
+    const wrap = document.createElement('div');
+    wrap.className = 'group-block border rounded p-3 mb-3 bg-white';
+    wrap.innerHTML = `
+        <div class="row g-2 align-items-end mb-2">
+            <div class="col-12 col-md-5">
+                <label class="form-label fw-semibold mb-1">空間標題</label>
+                <input type="text" class="form-control group-title" list="spaceOptions"
+                       placeholder="客廳 / 主臥 / 自由輸入">
+                <div class="mt-1 space-presets"></div>
+            </div>
+            <div class="col-12 col-md-5">
+                <label class="form-label fw-semibold mb-1">群組備註</label>
+                <input type="text" class="form-control group-note" placeholder="此空間備註">
+            </div>
+            <div class="col-12 col-md-2 text-md-end">
+                <button type="button" class="btn btn-outline-danger del-group-btn w-100">
+                    <i class="bi bi-trash"></i> 刪除空間
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-2">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width:180px;">品名 / 規格</th>
+                        <th style="width:110px;" class="text-center">數量</th>
+                        <th style="width:120px;" class="text-center">單價</th>
+                        <th style="width:120px;" class="text-end">金額</th>
+                        <th style="width:120px;">備註</th>
+                        <th style="width:55px;" class="text-center">贈品</th>
+                        <th style="width:55px;"></th>
+                    </tr>
+                </thead>
+                <tbody class="items-tbody"></tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-primary add-item-btn">
+                <i class="bi bi-plus-lg"></i> 新增品項
+            </button>
+            <div class="fw-semibold">空間小計：NT$ <span class="group-subtotal">0</span></div>
+        </div>`;
 
-calcAll(); // 載入時計算現有值
+    wrap.querySelector('.group-title').value = data.title || '';
+    wrap.querySelector('.group-note').value = data.note || '';
+
+    const presetsBox = wrap.querySelector('.space-presets');
+    SPACE_PRESETS.forEach(p => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-sm btn-outline-secondary me-1 mb-1 py-0';
+        b.textContent = p;
+        b.addEventListener('click', () => { wrap.querySelector('.group-title').value = p; });
+        presetsBox.appendChild(b);
+    });
+
+    const tbody = wrap.querySelector('.items-tbody');
+    const items = data.items && data.items.length ? data.items : [{}];
+    items.forEach(it => tbody.appendChild(buildItemRow(it)));
+
+    wrap.querySelector('.add-item-btn').addEventListener('click', () => { tbody.appendChild(buildItemRow({})); calcAll(); });
+    wrap.querySelector('.del-group-btn').addEventListener('click', () => { wrap.remove(); calcAll(); });
+
+    return wrap;
+}
+
+document.getElementById('addGroupBtn').addEventListener('click', () => {
+    groupsContainer.appendChild(buildGroup({}));
+    calcAll();
+});
+
+// ====================================================
+// 3. 全表合計
+// ====================================================
+function calcAll() {
+    let pretax = 0;
+    groupsContainer.querySelectorAll('.group-block').forEach(g => {
+        let sub = 0;
+        g.querySelectorAll('.item-row').forEach(tr => {
+            const gift = tr.querySelector('.item-gift').checked;
+            if (gift) return;
+            const qtyRaw = tr.querySelector('.item-qty').value;
+            let amount;
+            if (qtyIsNumeric(qtyRaw)) {
+                const qty = Number(String(qtyRaw).replace(/,/g,'')) || 0;
+                const price = parseFloat(tr.querySelector('.item-price').value) || 0;
+                amount = qty * price;
+            } else {
+                amount = parseFloat(tr.querySelector('.item-amount').value) || 0;
+            }
+            sub += amount;
+        });
+        g.querySelector('.group-subtotal').textContent = formatNumber(sub);
+        pretax += sub;
+    });
+    const tax = Math.round(pretax * 0.05);
+    const total = pretax + tax;
+    document.getElementById('subtotal_display').textContent = formatNumber(pretax);
+    document.getElementById('tax_display').textContent = formatNumber(tax);
+    document.getElementById('total_display').textContent = 'NT$ ' + formatNumber(total);
+}
+
+// ====================================================
+// 4. 序列化 → payload
+// ====================================================
+function serializePayload() {
+    const groups = [];
+    groupsContainer.querySelectorAll('.group-block').forEach(g => {
+        const items = [];
+        g.querySelectorAll('.item-row').forEach(tr => {
+            const name = tr.querySelector('.item-name').value.trim();
+            const qty_text = tr.querySelector('.item-qty').value.trim();
+            if (!name && !qty_text) return;
+            items.push({
+                name: name,
+                qty_text: qty_text,
+                unit_price: parseFloat(tr.querySelector('.item-price').value) || 0,
+                amount: parseFloat(tr.querySelector('.item-amount').value) || 0,
+                note: tr.querySelector('.item-note').value.trim(),
+                is_gift: tr.querySelector('.item-gift').checked
+            });
+        });
+        const title = g.querySelector('.group-title').value.trim();
+        if (!title && items.length === 0) return;
+        groups.push({
+            title: title,
+            note: g.querySelector('.group-note').value.trim(),
+            items: items
+        });
+    });
+    const payload = {
+        company: document.getElementById('company_title').value,
+        quote_date: document.getElementById('quote_date').value,
+        customer_name: document.getElementById('customer_name').value.trim(),
+        customer_phone: document.getElementById('customer_phone').value.trim(),
+        customer_address: document.getElementById('customer_address').value.trim(),
+        install_date: document.getElementById('install_date').value,
+        note: document.getElementById('notes').value.trim(),
+        groups: groups
+    };
+    const statusEl = document.getElementById('status');
+    if (statusEl) payload.status = statusEl.value;
+    return payload;
+}
+
+document.getElementById('quotationForm').addEventListener('submit', function(e) {
+    document.getElementById('payload').value = JSON.stringify(serializePayload());
+});
+
+// ====================================================
+// 5. 初始化：載入既有群組（無則給一個空群組）
+// ====================================================
+(function init() {
+    if (window.INITIAL_GROUPS && window.INITIAL_GROUPS.length) {
+        window.INITIAL_GROUPS.forEach(g => groupsContainer.appendChild(buildGroup(g)));
+    } else {
+        groupsContainer.appendChild(buildGroup({}));
+    }
+    calcAll();
+})();
 </script>
 {% endblock %}

@@ -17,6 +17,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgres
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
+# 啟動時確保資料表存在：新增表（quotation_groups/quotation_items/shipping_items）為非破壞性，
+# 既有表 create_all 會自動略過、不改不刪。失敗不阻擋啟動（DB 暫時不可達時 app 仍能起來）。
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"[init] create_all skipped: {e}")
+
 app.register_blueprint(customers_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(quotations_bp)
