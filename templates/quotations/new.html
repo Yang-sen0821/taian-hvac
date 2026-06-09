@@ -164,6 +164,7 @@
 <datalist id="spaceOptions">
     <option value="客廳"><option value="主臥"><option value="餐廳"><option value="書房">
     <option value="廚房"><option value="陽台"><option value="辦公室">
+    <option value="方案一"><option value="方案二"><option value="方案三">
 </datalist>
 
 <script>
@@ -172,6 +173,10 @@
 // ====================================================
 window.INITIAL_GROUPS = window.INITIAL_GROUPS || [];
 const SPACE_PRESETS = ['客廳','主臥','餐廳','書房','廚房','陽台','辦公室'];
+// 方案預設：附加到空間標題後（如「辦公室 方案一」）
+const PLAN_PRESETS = ['方案一','方案二','方案三'];
+// 品項備註補助快速帶入選項
+const SUBSIDY_PRESETS = ['可申請貨物稅補助','可申請汰舊換新補助','可申請原廠補助'];
 
 // ====================================================
 // 1. 公司切換 → 統編自動填入
@@ -217,7 +222,10 @@ function buildItemRow(data) {
         <td><input type="text" class="form-control text-center item-qty" placeholder="2 或 乙式"></td>
         <td><input type="number" class="form-control text-end item-price" min="0" step="1" value="0"></td>
         <td><input type="number" class="form-control text-end item-amount" min="0" step="1" value="0"></td>
-        <td><input type="text" class="form-control item-note" placeholder="備註"></td>
+        <td>
+            <input type="text" class="form-control item-note" placeholder="備註">
+            <div class="mt-1 subsidy-presets"></div>
+        </td>
         <td class="text-center">
             <input type="checkbox" class="form-check-input item-gift">
         </td>
@@ -247,6 +255,25 @@ function bindItemRow(tr) {
     const nameEl  = tr.querySelector('.item-name');
     const dd      = tr.querySelector('.item-dropdown');
     const warn    = tr.querySelector('.stock-warning');
+    const noteEl  = tr.querySelector('.item-note');
+    const subsidyBox = tr.querySelector('.subsidy-presets');
+
+    // 補助選項快速帶入：點擊把文字附加到該列備註（已存在則不重複加）
+    if (subsidyBox) {
+        SUBSIDY_PRESETS.forEach(s => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn btn-sm btn-outline-success me-1 mb-1 py-0';
+            b.style.fontSize = '11px';
+            b.textContent = '+ ' + s;
+            b.addEventListener('click', () => {
+                const cur = noteEl.value.trim();
+                if (cur.indexOf(s) !== -1) return;          // 已含則不重複
+                noteEl.value = cur ? (cur + '、' + s) : s;
+            });
+            subsidyBox.appendChild(b);
+        });
+    }
 
     // 即時計算該列金額
     function recalcRow() {
@@ -380,6 +407,19 @@ function buildGroup(data) {
         b.className = 'btn btn-sm btn-outline-secondary me-1 mb-1 py-0';
         b.textContent = p;
         b.addEventListener('click', () => { wrap.querySelector('.group-title').value = p; });
+        presetsBox.appendChild(b);
+    });
+    // 方案預設：附加到現有標題後（如「辦公室」+「方案一」→「辦公室 方案一」）
+    PLAN_PRESETS.forEach(p => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-sm btn-outline-info me-1 mb-1 py-0';
+        b.textContent = '+ ' + p;
+        b.addEventListener('click', () => {
+            const t = wrap.querySelector('.group-title');
+            const cur = t.value.trim();
+            t.value = cur ? (cur + ' ' + p) : p;
+        });
         presetsBox.appendChild(b);
     });
 

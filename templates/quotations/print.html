@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>估價單 {{ q.quote_number }} — {{ q.company }}</title>
+    <!-- Bootstrap Icons（公司聯絡資訊圖示用） -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         /* ===== 基本版面 ===== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,6 +53,25 @@
             font-size: 12px;
             line-height: 1.7;
             color: #444;
+        }
+        /* 公司名旁聯絡資訊（帶圖示） */
+        .company-contact {
+            margin-top: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 14px;
+            font-size: 11.5px;
+            color: #444;
+        }
+        .company-contact span {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+        .company-contact i {
+            margin-right: 4px;
+            font-size: 13px;
+            color: #0d6efd;
         }
 
         /* ===== 客戶資訊 ===== */
@@ -265,12 +286,15 @@
         <div class="header-left">
             <h1>{{ q.company or '泰安電器水電行' }}</h1>
             <p>估　價　單</p>
+            <div class="company-contact">
+                <span><i class="bi bi-telephone-fill"></i> 0984-190-152</span>
+                <span><i class="bi bi-chat-dots-fill"></i> LINE：0984190152</span>
+                <span><i class="bi bi-facebook"></i> 泰安電器水電行</span>
+                <span><i class="bi bi-instagram"></i> taian_tien.chi.hanh</span>
+            </div>
         </div>
         <div class="header-right">
-            <div>電話 / LINE：0984-190-152</div>
-            <div>FB：泰安電器水電行</div>
-            <div>IG：taian_tien.chi.hanh</div>
-            <div style="margin-top:4px; font-size:11px; color:#777;">
+            <div style="font-size:11px; color:#777;">
                 報價單號：{{ q.quote_number }}&nbsp;&nbsp;|&nbsp;&nbsp;日期：{{ roc_date or q.quote_date }}
             </div>
         </div>
@@ -341,10 +365,6 @@
                 <td>合計（未稅）</td>
                 <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}</td>
             </tr>
-            <tr>
-                <td>稅金 5%</td>
-                <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.tax or 0) }}</td>
-            </tr>
             <tr class="total-row">
                 <td>總計（含稅）</td>
                 <td style="text-align:right; color:#c00;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
@@ -403,7 +423,7 @@
 
     <!-- (h) 頁尾聲明 -->
     <div class="footer-notice">
-        簽章後回傳視同於正式訂購單　※此報價單內容與報價有效期限為期一個月。
+        <span style="color:#c00; font-weight:700;">簽章後回傳視同於正式訂購單</span>　※此報價單內容與報價有效期限為期一個月。
     </div>
 
 </div><!-- /page -->

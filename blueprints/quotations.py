@@ -241,17 +241,21 @@ def delete_quotes():
 def inventory_search():
     """打字篩選庫存品項，回傳符合的冷氣與贈品（含庫存量）。"""
     q = request.args.get("q", "").strip()
-    from db import ACInventory, GiftInventory
+    from db import ACInventory, GiftInventory, Material
     results = []
     for item in ACInventory.query.all():
         name = item.spec or ""
-        if not q or q in name:
+        if not q or q.lower() in name.lower():
             stock = item.actual_qty or item.system_qty or "0"
             results.append({"name": name, "type": "冷氣", "stock": stock})
     for item in GiftInventory.query.all():
         name = item.name or ""
-        if not q or q in name:
+        if not q or q.lower() in name.lower():
             results.append({"name": name, "type": "贈品", "stock": item.qty or "0"})
+    for item in Material.query.all():
+        name = item.name or ""
+        if not q or q.lower() in name.lower():
+            results.append({"name": name, "type": "材料", "stock": item.qty or "0"})
     return jsonify(results[:15])
 
 

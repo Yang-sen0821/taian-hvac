@@ -102,3 +102,54 @@ def gift_new():
         flash("贈品「{}」已新增".format(item.name))
         return redirect(url_for("inventory.gift_list"))
     return render_template("inventory/gift_new.html")
+
+
+# ===== 材料庫存（比照贈品，純新增，不影響冷氣/贈品流程） =====
+
+@inventory_bp.route("/materials")
+@login_required
+def material_list():
+    items = get_sheet("材料庫存")
+    q = request.args.get("q", "").strip()
+    for i, item in enumerate(items):
+        qty = parse_qty(item.get("庫存數量"))
+        item["_qty"] = qty
+        item["_low"] = qty <= LOW_STOCK_THRESHOLD
+        item["_idx"] = i
+    if q:
+        items = [it for it in items if q in str(it.get("名稱", ""))]
+    low_count = sum(1 for it in get_sheet("材料庫存") if parse_qty(it.get("庫存數量")) <= LOW_STOCK_THRESHOLD)
+    return render_template("inventory/materials.html", items=items, low_count=low_count, q=q)
+
+
+@inventory_bp.route("/materials/new", methods=["GET", "POST"])
+@login_required
+def material_new():
+    from db import db as _db, Material
+    if request.method == "POST":
+        item = Material(
+            name=request.form.get("name", ""),
+            qty=request.form.get("qty", "0"),
+            note=request.form.get("note", "")
+        )
+        _db.session.add(item)
+        _db.session.commit()
+        flash("材料「{}」已新增".format(item.name))
+        return redirect(url_for("inventory.material_list"))
+    return render_template("inventory/material_new.html")
+
+
+@inventory_bp.route("/materials/<int:idx>/edit", methods=["GET", "POST"])
+@login_required
+def material_edit(idx):
+    items = get_sheet("材料庫存")
+    if idx >= len(items):
+        return redirect(url_for("inventory.material_list"))
+    item = dict(items[idx])
+    if request.method == "POST":
+        item["庫存數量"] = request.form.get("qty", "")
+        item["備註"] = request.form.get("note", "")
+        update_row("材料庫存", idx, item)
+        flash(f"✅ 庫存已更新：{item.get('名稱','')}")
+        return redirect(url_for("inventory.material_list"))
+    return render_template("inventory/material_edit.html", item=item, idx=idx)

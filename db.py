@@ -108,6 +108,28 @@ class GiftInventory(db.Model):
         return d
 
 
+class Material(db.Model):
+    """材料庫存（比照贈品庫存：名稱 / 庫存數量 / 備註）"""
+    __tablename__ = "materials"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(200), default="")                         # 名稱
+    qty = db.Column(db.String(50), default="")                           # 庫存數量
+    note = db.Column(db.Text, default="")                                # 備註
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    FIELD_MAP = {
+        "名稱": "name",
+        "庫存數量": "qty",
+        "備註": "note",
+    }
+
+    def to_sheet_dict(self):
+        d = {cn: (getattr(self, en) or "") for cn, en in self.FIELD_MAP.items()}
+        d["id"] = self.id
+        return d
+
+
 class Quotation(db.Model):
     """報價單記錄 — 三品項 + 工程費 + 稅額 + 雙公司抬頭"""
     __tablename__ = "quotations"
@@ -228,6 +250,7 @@ SHEET_MODELS = {
     "顧客資料": Customer,
     "冷氣庫存": ACInventory,
     "贈品庫存": GiftInventory,
+    "材料庫存": Material,
     "報價單記錄": Quotation,
 }
 
