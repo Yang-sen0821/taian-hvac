@@ -48,7 +48,7 @@
           {% if preview_groups %}
             {% for grp in preview_groups %}
             <div class="px-3 pt-3">
-              <p class="fw-bold text-secondary mb-2">{{ grp.title }}</p>
+              <p class="fw-bold text-secondary mb-2">{{ grp['title'] }}</p>
             </div>
             <div class="table-responsive px-3 pb-2">
               <table class="table table-sm mb-0">
@@ -63,7 +63,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% for item in grp.items %}
+                  {% for item in grp['items'] %}
                   <tr{% if item.is_gift %} class="table-success"{% endif %}>
                     <td>{{ item.name }}</td>
                     <td class="text-center">{{ item.qty_text }}</td>
