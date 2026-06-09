@@ -109,8 +109,13 @@ class GiftInventory(db.Model):
 
 
 class Material(db.Model):
-    """材料庫存（比照贈品庫存：名稱 / 庫存數量 / 備註）"""
-    __tablename__ = "materials"
+    """材料庫存（比照贈品庫存：名稱 / 庫存數量 / 備註）
+
+    注意：prod 上已存在另一張結構不同的 `materials` 空表（brand/spec/price/
+    supplier_email… 的材料目錄雛形）。為避免撞名導致欄位不符而報錯，本模型
+    改用獨立表名 material_inventory。
+    """
+    __tablename__ = "material_inventory"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(200), default="")                         # 名稱

@@ -220,19 +220,28 @@ def _to_roc_date(date_str):
 @quotations_bp.route("/delete", methods=["POST"])
 @login_required
 def delete_quotes():
-    from db import Quotation
+    from db import Quotation, ShippingOrder
     ids = request.form.getlist("quote_ids")
     deleted = 0
+    blocked = []   # 已轉出貨單、不可直接刪除的報價單號
     for qid in ids:
         try:
             q = db.session.get(Quotation, int(qid))
         except (ValueError, TypeError):
             q = None
-        if q:
-            db.session.delete(q)
-            deleted += 1
+        if not q:
+            continue
+        # 報價單若已轉出貨單，外鍵會擋下刪除（且涉及出貨/帳務），改提醒先返還
+        if ShippingOrder.query.filter_by(quotation_id=q.id).count() > 0:
+            blocked.append(q.quote_number or f"#{q.id}")
+            continue
+        db.session.delete(q)        # 群組/細項由 cascade 連帶刪除
+        deleted += 1
     db.session.commit()
-    flash(f"已刪除 {deleted} 筆報價單")
+    if deleted:
+        flash(f"已刪除 {deleted} 筆報價單")
+    if blocked:
+        flash("下列報價單已轉出貨單，請先到該出貨單按「返還報價單」再刪除：{}".format("、".join(blocked)), "warning")
     return redirect(url_for("quotations.list_quotes"))
 
 
