@@ -252,10 +252,14 @@ def inventory_search():
         name = item.name or ""
         if not q or q.lower() in name.lower():
             results.append({"name": name, "type": "贈品", "stock": item.qty or "0"})
-    for item in Material.query.all():
-        name = item.name or ""
-        if not q or q.lower() in name.lower():
-            results.append({"name": name, "type": "材料", "stock": item.qty or "0"})
+    # 材料庫存為新表，表尚未建立時不可拖垮整支搜尋（冷氣/贈品仍須正常）
+    try:
+        for item in Material.query.all():
+            name = item.name or ""
+            if not q or q.lower() in name.lower():
+                results.append({"name": name, "type": "材料", "stock": item.qty or "0"})
+    except Exception:
+        db.session.rollback()
     return jsonify(results[:15])
 
 
