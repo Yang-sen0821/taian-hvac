@@ -27,51 +27,47 @@
             position: relative;
         }
 
-        /* ===== 抬頭 ===== */
+        /* ===== 抬頭（公司名置中、聯絡資訊直向置於右側） ===== */
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
+            position: relative;
+            text-align: center;
             border-bottom: 2px solid #222;
             padding-bottom: 8px;
             margin-bottom: 10px;
         }
-        .header-left h1 {
-            font-size: 22px;
+        .header h1 {
+            font-size: 24px;
             font-weight: 900;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
             margin-bottom: 2px;
         }
-        .header-left p {
-            font-size: 15px;
+        .header .subtitle {
+            font-size: 16px;
             font-weight: 700;
-            color: #333;
-            letter-spacing: 4px;
+            color: #1565c0;          /* 估價單三字藍色 */
+            letter-spacing: 6px;
+            margin: 0;
         }
         .header-right {
-            text-align: right;
-            font-size: 12px;
-            line-height: 1.7;
+            position: absolute;
+            top: 0;
+            right: 0;
+            text-align: left;
+            font-size: 11px;
+            line-height: 1.65;
             color: #444;
         }
-        /* 公司名旁聯絡資訊（帶圖示） */
-        .company-contact {
-            margin-top: 5px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px 14px;
-            font-size: 11.5px;
-            color: #444;
-        }
-        .company-contact span {
-            display: inline-flex;
-            align-items: center;
-            white-space: nowrap;
-        }
-        .company-contact i {
+        .header-right i {
             margin-right: 4px;
-            font-size: 13px;
+            font-size: 12px;
             color: #0d6efd;
+        }
+        .header-right .quote-no {
+            margin-top: 3px;
+            padding-top: 3px;
+            border-top: 1px solid #ddd;
+            white-space: nowrap;
+            color: #777;
         }
 
         /* ===== 客戶資訊 ===== */
@@ -281,22 +277,17 @@
 
 <div class="page">
 
-    <!-- (a) 抬頭 -->
+    <!-- (a) 抬頭：公司名置中、聯絡資訊+證照直向置右、單號日期單排 -->
     <div class="header">
-        <div class="header-left">
-            <h1>{{ q.company or '泰安電器水電行' }}</h1>
-            <p>估　價　單</p>
-            <div class="company-contact">
-                <span><i class="bi bi-telephone-fill"></i> 0984-190-152</span>
-                <span><i class="bi bi-chat-dots-fill"></i> LINE：0984190152</span>
-                <span><i class="bi bi-facebook"></i> 泰安電器水電行</span>
-                <span><i class="bi bi-instagram"></i> taian_tien.chi.hanh</span>
-            </div>
-        </div>
+        <h1>{{ q.company or '泰安電器水電行' }}</h1>
+        <p class="subtitle">估　價　單</p>
         <div class="header-right">
-            <div style="font-size:11px; color:#777;">
-                報價單號：{{ q.quote_number }}&nbsp;&nbsp;|&nbsp;&nbsp;日期：{{ roc_date or q.quote_date }}
-            </div>
+            <div><i class="bi bi-telephone-fill"></i> 0984-190-152</div>
+            <div><i class="bi bi-chat-dots-fill"></i> LINE：0984190152</div>
+            <div><i class="bi bi-facebook"></i> 泰安電器水電行</div>
+            <div><i class="bi bi-instagram"></i> taian_tien.chi.hanh</div>
+            <div>國家冷凍空調丙級技術士證 001-044724 號</div>
+            <div class="quote-no">報價單號：{{ q.quote_number }}　|　日期：{{ roc_date or q.quote_date }}</div>
         </div>
     </div>
 
@@ -372,12 +363,12 @@
             </tr>
             <tr class="total-row">
                 <td>總計（含稅）</td>
-                <td style="text-align:right; color:#c00;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+                <td style="text-align:right; color:#111;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
             </tr>
             {% else %}
             <tr class="total-row">
                 <td>總計</td>
-                <td style="text-align:right; color:#c00;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+                <td style="text-align:right; color:#111;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
             </tr>
             {% endif %}
         </table>
@@ -396,10 +387,14 @@
         </ol>
     </div>
 
-    <!-- (f) 銀行/證照 -->
+    <!-- (e2) 整單備註（顯示於合約文字下方） -->
+    {% if q.note %}
+    <div style="font-size:12px; color:#333; margin-bottom:10px; padding:6px 12px; border:1px dashed #bbb; border-radius:4px; white-space:pre-wrap;"><strong>備註：</strong>{{ q.note }}</div>
+    {% endif %}
+
+    <!-- (f) 銀行帳戶 -->
     <div class="bank-info">
         戶名：泰安電器水電行蔣佳良　／　009 彰化銀行（南台南分行）　／　帳號：6440 01 018086 00
-        　／　國家冷凍空調丙級技術士證 001-044724 號
     </div>
 
     <!-- (g) 簽章區 -->
@@ -429,7 +424,7 @@
 
     <!-- (h) 頁尾聲明 -->
     <div class="footer-notice">
-        <span style="color:#c00; font-weight:700;">簽章後回傳視同於正式訂購單</span>　※此報價單內容與報價有效期限為期一個月。
+        <span style="color:#c00; font-weight:700;">簽章後回傳視同於正式訂購單</span>　<span style="color:#c00; font-weight:700;">※此報價單內容與報價有效期限為期一個月。</span>
     </div>
 
 </div><!-- /page -->

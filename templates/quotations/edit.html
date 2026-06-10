@@ -254,10 +254,7 @@ function buildItemRow(data) {
         <td><input type="text" class="form-control text-center item-qty" placeholder="2 或 乙式"></td>
         <td><input type="number" class="form-control text-end item-price" min="0" step="1" value="0"></td>
         <td><input type="number" class="form-control text-end item-amount" min="0" step="1" value="0"></td>
-        <td>
-            <input type="text" class="form-control item-note" placeholder="備註">
-            <div class="mt-1 subsidy-presets"></div>
-        </td>
+        <td><input type="text" class="form-control item-note" placeholder="備註"></td>
         <td class="text-center">
             <input type="checkbox" class="form-check-input item-gift">
         </td>
@@ -284,43 +281,6 @@ function bindItemRow(tr) {
     const nameEl  = tr.querySelector('.item-name');
     const dd      = tr.querySelector('.item-dropdown');
     const warn    = tr.querySelector('.stock-warning');
-    const noteEl  = tr.querySelector('.item-note');
-    const subsidyBox = tr.querySelector('.subsidy-presets');
-
-    // 補助選項：勾選即把文字加入該列備註，取消勾選即移除
-    if (subsidyBox) {
-        const noteParts = () => noteEl.value.split('、').map(x => x.trim()).filter(Boolean);
-        SUBSIDY_PRESETS.forEach(s => {
-            const lab = document.createElement('label');
-            lab.className = 'form-check form-check-inline me-2 mb-0';
-            lab.style.fontSize = '11px';
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.className = 'form-check-input subsidy-cb';
-            cb.dataset.phrase = s;
-            cb.checked = noteParts().includes(s);
-            cb.addEventListener('change', () => {
-                let parts = noteParts();
-                const has = parts.includes(s);
-                if (cb.checked && !has) parts.push(s);
-                else if (!cb.checked && has) parts = parts.filter(x => x !== s);
-                noteEl.value = parts.join('、');
-            });
-            const span = document.createElement('span');
-            span.className = 'form-check-label ms-1';
-            span.textContent = s;
-            lab.appendChild(cb);
-            lab.appendChild(span);
-            subsidyBox.appendChild(lab);
-        });
-        // 手動改備註時同步勾選狀態
-        noteEl.addEventListener('input', () => {
-            const parts = noteParts();
-            subsidyBox.querySelectorAll('.subsidy-cb').forEach(cb => {
-                cb.checked = parts.includes(cb.dataset.phrase);
-            });
-        });
-    }
 
     function recalcRow() {
         if (giftEl.checked) {
@@ -366,13 +326,16 @@ function bindItemRow(tr) {
                         const opt = document.createElement('button');
                         opt.type = 'button';
                         opt.className = 'list-group-item list-group-item-action text-start';
-                        const badge = it.type === '冷氣' ? 'bg-warning text-dark' : 'bg-success';
+                        const isSub = it.type === '補助';
+                        const badge = it.type === '冷氣' ? 'bg-warning text-dark'
+                                    : (isSub ? 'bg-info' : 'bg-success');
                         opt.innerHTML = '<span class="fw-semibold">' + it.name + '</span>' +
                             ' <span class="badge ' + badge + ' ms-1">' + it.type + '</span>' +
-                            ' <span class="text-muted small ms-1">庫存 ' + it.stock + '</span>';
+                            (isSub ? '' : ' <span class="text-muted small ms-1">庫存 ' + it.stock + '</span>');
                         opt.addEventListener('click', () => {
                             nameEl.value = it.name;
                             dd.style.display = 'none'; dd.innerHTML = '';
+                            if (isSub) { warn.textContent = ''; return; }
                             const stock = parseInt(it.stock) || 0;
                             warn.textContent = (stock <= 2) ? '⚠️ 庫存僅剩 ' + stock + '，請先叫貨' : '';
                         });

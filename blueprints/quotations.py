@@ -17,6 +17,9 @@ _STAMP_FILES = {
     "泰安冷氣空調有限公司": "stamp_62193072_t.png",
 }
 
+# 三項補助選項：出現在品項打字下拉中（取代原備註勾選框）
+SUBSIDY_OPTIONS = ["可申請貨物稅補助", "可申請汰舊換新補助", "可申請原廠補助"]
+
 
 def _stamp_data_uri(company):
     """把對應公司的電子章讀成 base64 data URI 內嵌（離線/列印/截圖都不掉圖）。
@@ -296,6 +299,10 @@ def inventory_search():
                 results.append({"name": name, "type": "材料", "stock": item.qty or "0"})
     except Exception:
         db.session.rollback()
+    # 三項補助選項：在品項打字下拉中一併出現（與品項/材料/贈品同功能），無庫存
+    for s in SUBSIDY_OPTIONS:
+        if not q or q.lower() in s.lower():
+            results.append({"name": s, "type": "補助", "stock": ""})
     return jsonify(results[:15])
 
 
