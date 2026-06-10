@@ -4,10 +4,19 @@
 # mapped to English SQLAlchemy column names; the sheets_client compatibility
 # layer translates back to the Chinese keys the blueprints/templates expect.
 
+import json
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
+
+# 允許的文字顏色（白名單，避免 style 注入）；key=色名, value=hex
+ALLOWED_COLORS = {
+    "red": "#d32f2f",
+    "blue": "#1565c0",
+    "green": "#2e7d32",
+    "black": "#111111",
+}
 
 
 def parse_qty(qty_text):
@@ -381,8 +390,21 @@ class QuotationItem(db.Model):
     amount = db.Column(db.Float, default=0)                             # 金額
     note = db.Column(db.Text, default="")                              # 備註
     is_gift = db.Column(db.Boolean, default=False)                     # 是否為贈品
+    colors = db.Column(db.Text, default="")                            # 各欄文字顏色 JSON：{name,qty,amount,note}
 
     group = db.relationship("QuotationGroup", back_populates="items")
+
+    def color(self, field):
+        """回傳某欄（name/qty/amount/note）的 hex 顏色字串；無則空字串。
+        只回傳白名單內的 hex，避免 style 注入。"""
+        if not self.colors:
+            return ""
+        try:
+            d = json.loads(self.colors)
+        except (ValueError, TypeError):
+            return ""
+        val = (d.get(field) or "").strip()
+        return val if val in ALLOWED_COLORS.values() else ""
 
     def compute_amount(self):
         """後端權威算金額並寫回 self.amount，回傳金額。

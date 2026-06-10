@@ -328,11 +328,11 @@
             </tr>
             {% for it in g.items %}
             <tr>
-                <td class="name">{{ it.name }}{% if it.is_gift %}（贈品）{% endif %}</td>
-                <td class="center">{{ it.qty_text or '' }}</td>
+                <td class="name" style="color: {{ it.color('name') or 'inherit' }};">{{ it.name }}{% if it.is_gift %}（贈品）{% endif %}</td>
+                <td class="center" style="color: {{ it.color('qty') or 'inherit' }};">{{ it.qty_text or '' }}</td>
                 <td class="right">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
-                <td class="right">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
-                <td>{{ it.note or '' }}</td>
+                <td class="right" style="color: {{ it.color('amount') or 'inherit' }};">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
+                <td style="color: {{ it.color('note') or 'inherit' }};">{{ it.note or '' }}</td>
             </tr>
             {% endfor %}
             <!-- 群組小計列 -->

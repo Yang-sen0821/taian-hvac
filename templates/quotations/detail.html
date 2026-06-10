@@ -92,14 +92,14 @@
                         </tr>
                         {% for it in g.items %}
                         <tr>
-                            <td>
+                            <td style="color: {{ it.color('name') or 'inherit' }};">
                                 {{ it.name }}
                                 {% if it.is_gift %}<span class="badge bg-success ms-1">贈品</span>{% endif %}
                             </td>
-                            <td class="text-center">{{ it.qty_text or '' }}</td>
+                            <td class="text-center" style="color: {{ it.color('qty') or 'inherit' }};">{{ it.qty_text or '' }}</td>
                             <td class="text-end">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
-                            <td class="text-end fw-semibold">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
-                            <td class="small text-muted">{{ it.note or '' }}</td>
+                            <td class="text-end fw-semibold" style="color: {{ it.color('amount') or 'inherit' }};">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
+                            <td class="small text-muted" style="color: {{ it.color('note') or 'inherit' }};">{{ it.note or '' }}</td>
                         </tr>
                         {% endfor %}
                         <!-- 群組小計列 -->

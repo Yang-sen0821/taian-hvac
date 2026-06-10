@@ -198,7 +198,8 @@ window.INITIAL_GROUPS = [
                 unit_price: {{ it.unit_price or 0 }},
                 amount: {{ it.amount or 0 }},
                 note: {{ (it.note or '')|tojson }},
-                is_gift: {{ 'true' if it.is_gift else 'false' }}
+                is_gift: {{ 'true' if it.is_gift else 'false' }},
+                colors: {{ (it.colors or '{}')|safe }}
             }{% if not loop.last %},{% endif %}
             {% endfor %}
         ]
@@ -254,7 +255,10 @@ function buildItemRow(data) {
         <td><input type="text" class="form-control text-center item-qty" placeholder="2 或 乙式"></td>
         <td><input type="number" class="form-control text-end item-price" min="0" step="1" value="0"></td>
         <td><input type="number" class="form-control text-end item-amount" min="0" step="1" value="0"></td>
-        <td><input type="text" class="form-control item-note" placeholder="備註"></td>
+        <td>
+            <input type="text" class="form-control item-note" placeholder="備註">
+            <div class="mt-1 color-palette d-flex align-items-center gap-1"></div>
+        </td>
         <td class="text-center">
             <input type="checkbox" class="form-check-input item-gift">
         </td>
@@ -269,6 +273,15 @@ function buildItemRow(data) {
     tr.querySelector('.item-amount').value = data.amount || 0;
     tr.querySelector('.item-note').value = data.note || '';
     tr.querySelector('.item-gift').checked = !!data.is_gift;
+    // 預填各欄文字顏色（dataset + inline style）
+    const cdata = data.colors || {};
+    [['name','.item-name'],['qty','.item-qty'],['amount','.item-amount'],['note','.item-note']].forEach(([f, sel]) => {
+        if (cdata[f]) {
+            const el = tr.querySelector(sel);
+            el.style.color = cdata[f];
+            el.dataset.color = cdata[f];
+        }
+    });
     bindItemRow(tr);
     return tr;
 }
@@ -281,6 +294,33 @@ function bindItemRow(tr) {
     const nameEl  = tr.querySelector('.item-name');
     const dd      = tr.querySelector('.item-dropdown');
     const warn    = tr.querySelector('.stock-warning');
+    const noteEl  = tr.querySelector('.item-note');
+    const palette = tr.querySelector('.color-palette');
+
+    // 每欄獨立上色：先點欄位（品名/數量/金額/備註）再按色塊，只該欄變色
+    const COLOR_FIELDS = { name: nameEl, qty: qtyEl, amount: amountEl, note: noteEl };
+    let activeColorField = 'name';
+    Object.entries(COLOR_FIELDS).forEach(([f, el]) => {
+        if (el) el.addEventListener('focus', () => { activeColorField = f; });
+    });
+    if (palette) {
+        [['紅','#d32f2f'],['藍','#1565c0'],['綠','#2e7d32'],['黑','#111111']].forEach(([nm, hex]) => {
+            const b = document.createElement('button');
+            b.type = 'button'; b.title = nm + '（先點欄位再按此色）';
+            b.style.cssText = 'width:18px;height:18px;padding:0;border:1px solid #999;border-radius:3px;cursor:pointer;background:' + hex + ';';
+            b.addEventListener('click', () => {
+                const el = COLOR_FIELDS[activeColorField];
+                if (!el) return;
+                el.style.color = hex;
+                el.dataset.color = hex;
+            });
+            palette.appendChild(b);
+        });
+        const lbl = document.createElement('span');
+        lbl.className = 'text-muted ms-1'; lbl.style.fontSize = '10px';
+        lbl.textContent = '欄位文字色';
+        palette.appendChild(lbl);
+    }
 
     function recalcRow() {
         if (giftEl.checked) {
@@ -494,13 +534,19 @@ function serializePayload() {
             const name = tr.querySelector('.item-name').value.trim();
             const qty_text = tr.querySelector('.item-qty').value.trim();
             if (!name && !qty_text) return;
+            const colors = {};
+            [['name','.item-name'],['qty','.item-qty'],['amount','.item-amount'],['note','.item-note']].forEach(([f, sel]) => {
+                const el = tr.querySelector(sel);
+                if (el && el.dataset.color) colors[f] = el.dataset.color;
+            });
             items.push({
                 name: name,
                 qty_text: qty_text,
                 unit_price: parseFloat(tr.querySelector('.item-price').value) || 0,
                 amount: parseFloat(tr.querySelector('.item-amount').value) || 0,
                 note: tr.querySelector('.item-note').value.trim(),
-                is_gift: tr.querySelector('.item-gift').checked
+                is_gift: tr.querySelector('.item-gift').checked,
+                colors: colors
             });
         });
         const title = g.querySelector('.group-title').value.trim();

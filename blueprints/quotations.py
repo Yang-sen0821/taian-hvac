@@ -6,7 +6,23 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from auth import login_required
 from sheets_client import get_sheet, append_row
 from config import COMPANY_OPTIONS
-from db import db, parse_qty
+from db import db, parse_qty, ALLOWED_COLORS
+
+_COLOR_FIELDS = ("name", "qty", "amount", "note")
+_ALLOWED_HEX = set(ALLOWED_COLORS.values())
+
+
+def _clean_colors(raw):
+    """把前端送的顏色 dict 消毒成 JSON 字串：僅留 name/qty/amount/note 四欄、
+    且值必須是白名單 hex；全空回傳空字串。"""
+    if not isinstance(raw, dict):
+        return ""
+    out = {}
+    for f in _COLOR_FIELDS:
+        v = (raw.get(f) or "").strip()
+        if v in _ALLOWED_HEX:
+            out[f] = v
+    return json.dumps(out) if out else ""
 
 quotations_bp = Blueprint("quotations", __name__, url_prefix="/quotations")
 
@@ -84,6 +100,7 @@ def _build_groups_from_payload(q, payload):
                 amount=safe_float(it.get("amount")),   # 僅在數量為文字時會被採用
                 note=(it.get("note") or "").strip(),
                 is_gift=bool(it.get("is_gift")),
+                colors=_clean_colors(it.get("colors")),
             )
             group.items.append(item)
         q.groups.append(group)
