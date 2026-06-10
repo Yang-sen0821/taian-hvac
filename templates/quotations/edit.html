@@ -287,20 +287,38 @@ function bindItemRow(tr) {
     const noteEl  = tr.querySelector('.item-note');
     const subsidyBox = tr.querySelector('.subsidy-presets');
 
-    // 補助選項快速帶入：點擊把文字附加到該列備註（已存在則不重複加）
+    // 補助選項：勾選即把文字加入該列備註，取消勾選即移除
     if (subsidyBox) {
+        const noteParts = () => noteEl.value.split('、').map(x => x.trim()).filter(Boolean);
         SUBSIDY_PRESETS.forEach(s => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'btn btn-sm btn-outline-success me-1 mb-1 py-0';
-            b.style.fontSize = '11px';
-            b.textContent = '+ ' + s;
-            b.addEventListener('click', () => {
-                const cur = noteEl.value.trim();
-                if (cur.indexOf(s) !== -1) return;          // 已含則不重複
-                noteEl.value = cur ? (cur + '、' + s) : s;
+            const lab = document.createElement('label');
+            lab.className = 'form-check form-check-inline me-2 mb-0';
+            lab.style.fontSize = '11px';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'form-check-input subsidy-cb';
+            cb.dataset.phrase = s;
+            cb.checked = noteParts().includes(s);
+            cb.addEventListener('change', () => {
+                let parts = noteParts();
+                const has = parts.includes(s);
+                if (cb.checked && !has) parts.push(s);
+                else if (!cb.checked && has) parts = parts.filter(x => x !== s);
+                noteEl.value = parts.join('、');
             });
-            subsidyBox.appendChild(b);
+            const span = document.createElement('span');
+            span.className = 'form-check-label ms-1';
+            span.textContent = s;
+            lab.appendChild(cb);
+            lab.appendChild(span);
+            subsidyBox.appendChild(lab);
+        });
+        // 手動改備註時同步勾選狀態
+        noteEl.addEventListener('input', () => {
+            const parts = noteParts();
+            subsidyBox.querySelectorAll('.subsidy-cb').forEach(cb => {
+                cb.checked = parts.includes(cb.dataset.phrase);
+            });
         });
     }
 

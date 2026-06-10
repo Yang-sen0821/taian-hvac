@@ -407,14 +407,9 @@
         <!-- 公司簽章 -->
         <div class="sign-box">
             <label>公司簽章：</label>
-            {% if q.company == '泰安電器水電行' %}
-                <img class="stamp" src="/static/stamps/stamp_98811221_t.png"
-                     alt="泰安電器水電行章">
-            {% elif q.company == '泰安冷氣空調有限公司' %}
-                <img class="stamp" src="/static/stamps/stamp_62193072_t.png"
-                     alt="泰安冷氣空調有限公司章">
+            {% if stamp_uri %}
+                <img class="stamp" src="{{ stamp_uri }}" alt="公司電子章">
             {% else %}
-                <!-- 無對應印章，保留空白 -->
                 <div style="height:80px;"></div>
             {% endif %}
         </div>

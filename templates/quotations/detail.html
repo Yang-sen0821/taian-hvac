@@ -136,6 +136,14 @@
                 </p>
                 <div class="d-flex align-items-end gap-3">
                     <div style="flex: 1;">
+                        <div class="small text-muted mb-1">公司簽章</div>
+                        {% if stamp_uri %}
+                        <img src="{{ stamp_uri }}" alt="公司電子章" style="height: 80px; display: block;">
+                        {% else %}
+                        <div style="height: 50px;"></div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1;">
                         <div class="small text-muted mb-1">客戶簽名</div>
                         <div style="height: 50px; border: 1px solid #aaa; border-radius: 4px;"></div>
                     </div>

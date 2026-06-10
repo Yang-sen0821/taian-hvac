@@ -1,12 +1,37 @@
 import datetime
 import json
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+import os
+import base64
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from auth import login_required
 from sheets_client import get_sheet, append_row
 from config import COMPANY_OPTIONS
 from db import db, parse_qty
 
 quotations_bp = Blueprint("quotations", __name__, url_prefix="/quotations")
+
+
+# 公司抬頭 -> 電子章檔名（空抬頭視為預設「泰安電器水電行」，與列印抬頭預設一致）
+_STAMP_FILES = {
+    "泰安電器水電行": "stamp_98811221_t.png",
+    "泰安冷氣空調有限公司": "stamp_62193072_t.png",
+}
+
+
+def _stamp_data_uri(company):
+    """把對應公司的電子章讀成 base64 data URI 內嵌（離線/列印/截圖都不掉圖）。
+    讀不到檔回傳空字串。"""
+    eff = (company or "").strip() or "泰安電器水電行"
+    fname = _STAMP_FILES.get(eff)
+    if not fname:
+        return ""
+    path = os.path.join(current_app.static_folder, "stamps", fname)
+    try:
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        return "data:image/png;base64," + b64
+    except OSError:
+        return ""
 
 def next_quote_number():
     today = datetime.date.today().strftime("%Y%m%d")
@@ -124,7 +149,8 @@ def detail(quote_id):
     if not q:
         flash("找不到該報價單（可能已被刪除）")
         return redirect(url_for("quotations.list_quotes"))
-    return render_template("quotations/detail.html", q=q, idx=quote_id)
+    return render_template("quotations/detail.html", q=q, idx=quote_id,
+                           stamp_uri=_stamp_data_uri(q.company))
 
 
 @quotations_bp.route("/<int:quote_id>/edit", methods=["GET", "POST"])
@@ -198,7 +224,8 @@ def print_quote(quote_id):
         return redirect(url_for("quotations.list_quotes"))
     # 報價日期轉民國年（格式「民國 NNN/M/D」）；解析失敗則回傳原字串
     roc_date = _to_roc_date(q.quote_date)
-    return render_template("quotations/print.html", q=q, roc_date=roc_date)
+    return render_template("quotations/print.html", q=q, roc_date=roc_date,
+                           stamp_uri=_stamp_data_uri(q.company))
 
 
 def _to_roc_date(date_str):
