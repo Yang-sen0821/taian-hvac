@@ -117,24 +117,48 @@
             </div>
         </div>
 
-        <!-- 合計區 -->
-        <div class="row justify-content-end">
-            <div class="col-12 col-md-6 col-lg-5">
+        <!-- 簡式合約（左） + 合計區（右） -->
+        <div class="row mt-2">
+            <!-- 左側：簡式合約條款 + 銀行/證照 + 客戶簽名 -->
+            <div class="col-12 col-md-7">
+                <h6 class="text-uppercase text-muted small mb-2 fw-bold">合約條款</h6>
+                <ol class="small mb-3" style="padding-left: 18px; line-height: 1.9;">
+                    <li>本報價單經業主簽准視同訂購之附件</li>
+                    <li>本報價單內未列入部分，不視為工程施作範圍</li>
+                    <li>業主未付清該標的物之貨款或交付之票據未全部兌現時，承包商保有該標的物的所有權</li>
+                    <li>保固期：施工安裝保固一年（從驗收完成日起算），機器設備零件等依原廠提供之保固為準</li>
+                    <li>如業主無依承包商所建議之冷氣噸位大小購買，日後如有吹不冷或損壞，不列入保固範圍</li>
+                    <li class="text-danger fw-semibold">付款方式：簽准後需先收取設備費用，進場配管完成收取施工材料費，安裝完成後收取尾款。</li>
+                </ol>
+                <p class="small text-muted mb-3" style="border-left: 3px solid #888; padding-left: 8px;">
+                    戶名：泰安電器水電行蔣佳良　／　009 彰化銀行（南台南分行）　／　帳號：6440 01 018086 00<br>
+                    國家冷凍空調丙級技術士證 001-044724 號
+                </p>
+                <div class="d-flex align-items-end gap-3">
+                    <div style="flex: 1;">
+                        <div class="small text-muted mb-1">客戶簽名</div>
+                        <div style="height: 50px; border: 1px solid #aaa; border-radius: 4px;"></div>
+                    </div>
+                    <div style="flex: 1;">
+                        <div class="small text-muted mb-1">日期</div>
+                        <div style="height: 50px; border-bottom: 1.5px solid #333;"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- 右側：合計（依含稅與否顯示） -->
+            <div class="col-12 col-md-5">
                 <div class="card bg-light border-0">
                     <div class="card-body py-3">
                         <table class="table table-sm table-borderless mb-0">
                             <tbody>
+                                {% if (q.tax or 0) > 0 %}
                                 <tr>
                                     <td class="text-muted">未稅合計</td>
-                                    <td class="text-end fw-semibold">
-                                        NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}
-                                    </td>
+                                    <td class="text-end fw-semibold">NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}</td>
                                 </tr>
                                 <tr>
                                     <td class="text-muted">稅額 5%</td>
-                                    <td class="text-end fw-semibold">
-                                        NT$ {{ '{:,.0f}'.format(q.tax or 0) }}
-                                    </td>
+                                    <td class="text-end fw-semibold">NT$ {{ '{:,.0f}'.format(q.tax or 0) }}</td>
                                 </tr>
                                 <tr class="border-top">
                                     <td class="fw-bold pt-2">含稅總金額</td>
@@ -144,6 +168,16 @@
                                         </span>
                                     </td>
                                 </tr>
+                                {% else %}
+                                <tr class="border-top">
+                                    <td class="fw-bold pt-2">總金額</td>
+                                    <td class="text-end pt-2">
+                                        <span style="font-size: 2rem; font-weight: 800; color: #dc3545; line-height: 1.1;">
+                                            NT$ {{ '{:,.0f}'.format(q.total or 0) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>

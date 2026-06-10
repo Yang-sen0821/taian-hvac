@@ -361,14 +361,25 @@
     <!-- (d) 合計區 -->
     <div class="totals">
         <table>
+            {% if (q.tax or 0) > 0 %}
             <tr>
                 <td>合計（未稅）</td>
                 <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}</td>
+            </tr>
+            <tr>
+                <td>稅金 5%</td>
+                <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.tax or 0) }}</td>
             </tr>
             <tr class="total-row">
                 <td>總計（含稅）</td>
                 <td style="text-align:right; color:#c00;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
             </tr>
+            {% else %}
+            <tr class="total-row">
+                <td>總計</td>
+                <td style="text-align:right; color:#c00;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+            </tr>
+            {% endif %}
         </table>
     </div>
 

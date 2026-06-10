@@ -106,6 +106,19 @@
             <i class="bi bi-calculator"></i> 合計
         </div>
         <div class="card-body">
+            <div class="mb-3">
+                <span class="form-label fw-semibold me-3">稅額</span>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="tax_mode" id="tax_none" value="none"
+                           {% if (q.tax or 0) <= 0 %}checked{% endif %}>
+                    <label class="form-check-label" for="tax_none">不含稅</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="tax_mode" id="tax_inc" value="inc"
+                           {% if (q.tax or 0) > 0 %}checked{% endif %}>
+                    <label class="form-check-label" for="tax_inc">含稅（加 5% 營業稅）</label>
+                </div>
+            </div>
             <div class="row justify-content-end">
                 <div class="col-12 col-md-5">
                     <table class="table table-sm mb-0">
@@ -114,12 +127,12 @@
                                 <td class="text-muted">未稅合計</td>
                                 <td class="text-end fw-semibold">NT$ <span id="subtotal_display">0</span></td>
                             </tr>
-                            <tr>
+                            <tr id="tax_row">
                                 <td class="text-muted">稅額 5%</td>
                                 <td class="text-end fw-semibold">NT$ <span id="tax_display">0</span></td>
                             </tr>
                             <tr class="table-light border-top">
-                                <td class="fw-bold">含稅總金額</td>
+                                <td class="fw-bold" id="total_label">總金額</td>
                                 <td class="text-end">
                                     <span id="total_display"
                                           style="font-size: 1.6rem; font-weight: 700; color: #dc3545;">NT$ 0</span>
@@ -448,6 +461,10 @@ document.getElementById('addGroupBtn').addEventListener('click', () => {
 // ====================================================
 // 3. 全表合計
 // ====================================================
+function isTaxable() {
+    const el = document.getElementById('tax_inc');
+    return !!(el && el.checked);
+}
 function calcAll() {
     let pretax = 0;
     groupsContainer.querySelectorAll('.group-block').forEach(g => {
@@ -469,12 +486,21 @@ function calcAll() {
         g.querySelector('.group-subtotal').textContent = formatNumber(sub);
         pretax += sub;
     });
-    const tax = Math.round(pretax * 0.05);
+    const taxable = isTaxable();
+    const tax = taxable ? Math.round(pretax * 0.05) : 0;
     const total = pretax + tax;
     document.getElementById('subtotal_display').textContent = formatNumber(pretax);
     document.getElementById('tax_display').textContent = formatNumber(tax);
     document.getElementById('total_display').textContent = 'NT$ ' + formatNumber(total);
+    const taxRow = document.getElementById('tax_row');
+    if (taxRow) taxRow.style.display = taxable ? '' : 'none';
+    const label = document.getElementById('total_label');
+    if (label) label.textContent = taxable ? '含稅總金額' : '總金額';
 }
+['tax_none', 'tax_inc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', calcAll);
+});
 
 // ====================================================
 // 4. 序列化 → payload
@@ -512,6 +538,7 @@ function serializePayload() {
         customer_address: document.getElementById('customer_address').value.trim(),
         install_date: document.getElementById('install_date').value,
         note: document.getElementById('notes').value.trim(),
+        taxable: isTaxable(),
         groups: groups
     };
     const statusEl = document.getElementById('status');

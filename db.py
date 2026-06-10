@@ -229,14 +229,15 @@ class Quotation(db.Model):
         order_by="QuotationGroup.seq",
     )
 
-    def recompute_totals(self):
+    def recompute_totals(self, taxable=True):
         """後端權威重算：依各群組細項重算 group.subtotal 與 pretax/tax/total。
 
         規則：
           group.subtotal = sum(該群 item.amount)
           pretax = sum(group.subtotal)
-          tax = round(pretax * 0.05)
-          total = pretax + tax
+          taxable=True  → tax = round(pretax * 0.05)；total = pretax + tax
+          taxable=False → tax = 0（不含稅）；total = pretax
+        含稅與否未另設欄位（避免動既有表結構）：以 tax>0 代表含稅、tax==0 代表不含稅。
         工程費 engineering / 雜項 other 已停用，固定設為 0。
         """
         pretax = 0.0
@@ -245,7 +246,7 @@ class Quotation(db.Model):
         self.engineering = 0          # 停用，保留欄位歸零
         self.other = 0                # 停用，保留欄位歸零
         self.pretax = pretax
-        self.tax = round(pretax * 0.05)
+        self.tax = round(pretax * 0.05) if taxable else 0
         self.total = self.pretax + self.tax
         return self.total
 

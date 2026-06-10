@@ -100,9 +100,9 @@ def new_quote():
             note=(payload.get("note") or "").strip(),
             status="草稿",
         )
-        # 建立群組與細項，金額由後端權威重算
+        # 建立群組與細項，金額由後端權威重算（含稅與否由 payload 決定）
         _build_groups_from_payload(q, payload)
-        q.recompute_totals()
+        q.recompute_totals(bool(payload.get("taxable", False)))
 
         db.session.add(q)
         db.session.commit()
@@ -167,7 +167,7 @@ def edit_quote(quote_id):
         q.groups.clear()
         db.session.flush()   # 確保 delete-orphan 先生效，避免新舊 seq 衝突
         _build_groups_from_payload(q, payload)
-        q.recompute_totals()
+        q.recompute_totals(bool(payload.get("taxable", False)))
 
         # 狀態：允許在草稿編輯頁直接定案（例如改為「已確認」）；僅接受合法值
         new_status = (payload.get("status") or "").strip()
