@@ -2,10 +2,16 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    {% if sign_mode %}
+    <!-- 簽名/憑證模式（客戶手機）：固定版面寬，整頁合約縮放至螢幕寬，免左右滑 -->
+    <meta name="viewport" content="width=850">
+    {% else %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% endif %}
     <title>估價單 {{ q.quote_number }} — {{ q.company }}</title>
-    <!-- Bootstrap Icons（公司聯絡資訊圖示用） -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Bootstrap Icons（公司聯絡資訊圖示用）：非阻塞載入，CDN 不通時不卡整頁白屏 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+          media="print" onload="this.media='all'">
     <style>
         /* ===== 基本版面 ===== */
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,11 +280,13 @@
 </head>
 <body>
 
-<!-- 操作列（列印時隱藏） -->
+{% if not sign_mode %}
+<!-- 操作列（內部使用；客戶簽名/憑證頁不顯示，列印時隱藏） -->
 <div class="action-bar d-print-none">
     <button class="btn-print" onclick="window.print()">&#128438; 列印 / 儲存 PDF</button>
     <a href="/quotations/{{ q.id }}" class="btn-back">&#8592; 返回報價單</a>
 </div>
+{% endif %}
 
 <div class="page">
 
@@ -451,26 +459,26 @@
 {% if sign_mode == 'sign' %}
 <!-- ══ 簽名模式（客戶端）：底部固定簽名板 ══ -->
 <style>
-    body { padding-bottom: 300px; }
+    body { padding-bottom: 460px; }
     .signbar {
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
-        background: #fff; border-top: 3px solid #1565c0;
+        background: #fff; border-top: 4px solid #1565c0;
         box-shadow: 0 -4px 16px rgba(0,0,0,.15);
-        padding: 12px 16px 16px; max-width: 210mm; margin: 0 auto;
+        padding: 16px 20px 20px; max-width: 850px; margin: 0 auto;
     }
-    .signbar h4 { font-size: 15px; margin-bottom: 8px; color: #1565c0; }
+    .signbar h4 { font-size: 20px; margin-bottom: 10px; color: #1565c0; }
     .signbar canvas {
-        width: 100%; height: 150px; border: 1.5px dashed #888;
-        border-radius: 6px; background: #fff; touch-action: none; display: block;
+        width: 100%; height: 240px; border: 2px dashed #888;
+        border-radius: 8px; background: #fff; touch-action: none; display: block;
     }
-    .signbar .btns { display: flex; gap: 10px; margin-top: 10px; }
+    .signbar .btns { display: flex; gap: 14px; margin-top: 14px; }
     .signbar button {
-        flex: 1; padding: 12px 0; font-size: 16px; font-weight: 700;
-        border-radius: 6px; border: none; cursor: pointer;
+        flex: 1; padding: 18px 0; font-size: 22px; font-weight: 700;
+        border-radius: 8px; border: none; cursor: pointer;
     }
     .signbar .btn-clear { background: #eee; color: #333; }
     .signbar .btn-ok { background: #1565c0; color: #fff; }
-    .signbar .hint { font-size: 12px; color: #666; margin-top: 6px; text-align: center; }
+    .signbar .hint { font-size: 15px; color: #666; margin-top: 8px; text-align: center; }
     @media print { .signbar { display: none; } }
 </style>
 <div class="signbar">
@@ -485,44 +493,85 @@
     </form>
     <div class="hint">送出後將顯示完整簽署畫面並鎖定本報價單內容</div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script>
+// 內嵌極簡簽名板（零外部依賴；手機 LINE 內建瀏覽器 CDN 不通也能用）
 (function () {
     const canvas = document.getElementById('sigpad');
-    function resize() {
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        const data = pad ? pad.toData() : null;
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
-        if (pad && data) pad.fromData(data);
+    const ctx = canvas.getContext('2d');
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    let drawing = false, empty = true;
+
+    // 畫布實際解析度 = 顯示尺寸 × DPR（只設定一次，避免簽到一半被清空）
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#111';
+
+    function pos(e) {
+        const r = canvas.getBoundingClientRect();
+        const t = (e.touches && e.touches.length) ? e.touches[0] : e;
+        // 以顯示比例換算座標：頁面被縮放（viewport=850）時仍準確
+        return {
+            x: (t.clientX - r.left) * (canvas.offsetWidth / r.width),
+            y: (t.clientY - r.top) * (canvas.offsetHeight / r.height)
+        };
     }
-    let pad = null;
-    resize();
-    pad = new SignaturePad(canvas, { minWidth: 1, maxWidth: 2.5 });
-    window.addEventListener('resize', resize);
-    document.getElementById('sigclear').addEventListener('click', () => pad.clear());
-    document.getElementById('sigform').addEventListener('submit', (e) => {
-        if (pad.isEmpty()) {
+    function start(e) {
+        e.preventDefault();
+        drawing = true;
+        const p = pos(e);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        // 點一下也留點（畫極短線）
+        ctx.lineTo(p.x + 0.1, p.y + 0.1);
+        ctx.stroke();
+        empty = false;
+    }
+    function move(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const p = pos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+    }
+    function end() { drawing = false; }
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+    canvas.addEventListener('touchcancel', end);
+
+    document.getElementById('sigclear').addEventListener('click', function () {
+        ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+        empty = true;
+    });
+    document.getElementById('sigform').addEventListener('submit', function (e) {
+        if (empty) {
             e.preventDefault();
             alert('請先在框內簽名');
             return;
         }
-        document.getElementById('sigdata').value = pad.toDataURL('image/png');
+        document.getElementById('sigdata').value = canvas.toDataURL('image/png');
     });
 })();
 </script>
 {% elif sign_mode == 'signed' %}
 <!-- ══ 已簽署憑證畫面（客戶端）：頂部橫幅提示截圖 ══ -->
 <style>
-    body { padding-top: 86px; }
+    body { padding-top: 110px; }
     .signedbar {
         position: fixed; top: 0; left: 0; right: 0; z-index: 999;
         background: #2e7d32; color: #fff; text-align: center;
-        padding: 12px 16px; font-size: 15px; font-weight: 700;
+        padding: 16px 20px; font-size: 21px; font-weight: 700;
         box-shadow: 0 2px 10px rgba(0,0,0,.2);
     }
-    .signedbar .sub { font-size: 13px; font-weight: 400; margin-top: 4px; }
+    .signedbar .sub { font-size: 17px; font-weight: 400; margin-top: 6px; }
     @media print { .signedbar { display: none; } body { padding-top: 0; } }
 </style>
 <div class="signedbar">
