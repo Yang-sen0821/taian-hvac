@@ -8,12 +8,12 @@ from sheets_client import get_sheet, append_row
 from config import COMPANY_OPTIONS
 from db import db, parse_qty, ALLOWED_COLORS
 
-_COLOR_FIELDS = ("name", "qty", "amount", "note")
+_COLOR_FIELDS = ("name", "qty", "price", "amount", "note")
 _ALLOWED_HEX = set(ALLOWED_COLORS.values())
 
 
 def _clean_colors(raw):
-    """把前端送的顏色 dict 消毒成 JSON 字串：僅留 name/qty/amount/note 四欄、
+    """把前端送的顏色 dict 消毒成 JSON 字串：僅留 name/qty/price/amount/note 五欄、
     且值必須是白名單 hex；全空回傳空字串。"""
     if not isinstance(raw, dict):
         return ""

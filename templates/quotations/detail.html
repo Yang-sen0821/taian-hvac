@@ -97,7 +97,7 @@
                                 {% if it.is_gift %}<span class="badge bg-success ms-1">贈品</span>{% endif %}
                             </td>
                             <td class="text-center" style="color: {{ it.color('qty') or 'inherit' }};">{{ it.qty_text or '' }}</td>
-                            <td class="text-end">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
+                            <td class="text-end" style="color: {{ it.color('price') or 'inherit' }};">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
                             <td class="text-end fw-semibold" style="color: {{ it.color('amount') or 'inherit' }};">{{ '{:,.0f}'.format(it.amount or 0) }}</td>
                             <td class="small text-muted" style="color: {{ it.color('note') or 'inherit' }};">{{ it.note or '' }}</td>
                         </tr>

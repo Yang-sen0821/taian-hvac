@@ -257,7 +257,10 @@ function buildItemRow(data) {
             <input type="text" class="form-control text-center item-qty" placeholder="2 或 乙式">
             <div class="mt-1 color-palette d-flex gap-1" data-cf="qty"></div>
         </td>
-        <td><input type="number" class="form-control text-end item-price" min="0" step="1" value="0"></td>
+        <td>
+            <input type="number" class="form-control text-end item-price" min="0" step="1" value="0">
+            <div class="mt-1 color-palette d-flex gap-1" data-cf="price"></div>
+        </td>
         <td>
             <input type="number" class="form-control text-end item-amount" min="0" step="1" value="0">
             <div class="mt-1 color-palette d-flex gap-1" data-cf="amount"></div>
@@ -282,7 +285,7 @@ function buildItemRow(data) {
     tr.querySelector('.item-gift').checked = !!data.is_gift;
     // 預填各欄文字顏色（dataset + inline style）
     const cdata = data.colors || {};
-    [['name','.item-name'],['qty','.item-qty'],['amount','.item-amount'],['note','.item-note']].forEach(([f, sel]) => {
+    [['name','.item-name'],['qty','.item-qty'],['price','.item-price'],['amount','.item-amount'],['note','.item-note']].forEach(([f, sel]) => {
         if (cdata[f]) {
             const el = tr.querySelector(sel);
             el.style.color = cdata[f];
@@ -304,7 +307,7 @@ function bindItemRow(tr) {
     const noteEl  = tr.querySelector('.item-note');
 
     // 每欄獨立上色：每欄下方各一排色塊（紅/藍/綠/黑），各染各欄
-    const COLOR_FIELDS = { name: nameEl, qty: qtyEl, amount: amountEl, note: noteEl };
+    const COLOR_FIELDS = { name: nameEl, qty: qtyEl, price: priceEl, amount: amountEl, note: noteEl };
     tr.querySelectorAll('.color-palette').forEach(pal => {
         const target = COLOR_FIELDS[pal.dataset.cf];
         if (!target) return;
@@ -530,7 +533,7 @@ function serializePayload() {
             const qty_text = tr.querySelector('.item-qty').value.trim();
             if (!name && !qty_text) return;
             const colors = {};
-            [['name','.item-name'],['qty','.item-qty'],['amount','.item-amount'],['note','.item-note']].forEach(([f, sel]) => {
+            [['name','.item-name'],['qty','.item-qty'],['price','.item-price'],['amount','.item-amount'],['note','.item-note']].forEach(([f, sel]) => {
                 const el = tr.querySelector(sel);
                 if (el && el.dataset.color) colors[f] = el.dataset.color;
             });

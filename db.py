@@ -390,12 +390,12 @@ class QuotationItem(db.Model):
     amount = db.Column(db.Float, default=0)                             # 金額
     note = db.Column(db.Text, default="")                              # 備註
     is_gift = db.Column(db.Boolean, default=False)                     # 是否為贈品
-    colors = db.Column(db.Text, default="")                            # 各欄文字顏色 JSON：{name,qty,amount,note}
+    colors = db.Column(db.Text, default="")                            # 各欄文字顏色 JSON：{name,qty,price,amount,note}
 
     group = db.relationship("QuotationGroup", back_populates="items")
 
     def color(self, field):
-        """回傳某欄（name/qty/amount/note）的 hex 顏色字串；無則空字串。
+        """回傳某欄（name/qty/price/amount/note）的 hex 顏色字串；無則空字串。
         只回傳白名單內的 hex，避免 style 注入。"""
         if not self.colors:
             return ""
