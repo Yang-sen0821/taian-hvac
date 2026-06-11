@@ -6,9 +6,24 @@
 
 import json
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
+
+
+def round_half_up(value):
+    """標準四捨五入取整（台灣商業習慣）。
+
+    Python 內建 round() 是銀行家捨入（50.5 → 50），金額計算不可用；
+    本函式 50.5 → 51。所有對外呈現的金額（品項金額/小計/稅金/總額）
+    一律經此取整，確保未稅 + 稅金 = 總額 完全吻合。
+    """
+    try:
+        return int(Decimal(str(value if value is not None else 0))
+                   .quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    except Exception:
+        return 0
 
 # 允許的文字顏色（白名單，避免 style 注入）；key=色名, value=hex
 ALLOWED_COLORS = {
@@ -249,13 +264,13 @@ class Quotation(db.Model):
         含稅與否未另設欄位（避免動既有表結構）：以 tax>0 代表含稅、tax==0 代表不含稅。
         工程費 engineering / 雜項 other 已停用，固定設為 0。
         """
-        pretax = 0.0
+        pretax = 0
         for group in self.groups:
             pretax += group.recompute_subtotal()
         self.engineering = 0          # 停用，保留欄位歸零
         self.other = 0                # 停用，保留欄位歸零
-        self.pretax = pretax
-        self.tax = round(pretax * 0.05) if taxable else 0
+        self.pretax = round_half_up(pretax)
+        self.tax = round_half_up(self.pretax * 0.05) if taxable else 0
         self.total = self.pretax + self.tax
         return self.total
 
@@ -370,11 +385,11 @@ class QuotationGroup(db.Model):
           數量為文字（如「乙式」）→ 採前端手填的 amount
           is_gift=True → amount 強制 0
         """
-        subtotal = 0.0
+        subtotal = 0
         for item in self.items:
             subtotal += item.compute_amount()
-        self.subtotal = subtotal
-        return subtotal
+        self.subtotal = round_half_up(subtotal)
+        return self.subtotal
 
 
 class QuotationItem(db.Model):
@@ -423,9 +438,9 @@ class QuotationItem(db.Model):
         # 區分「真的解析到數字」與「文字解析回 0」：空字串或非數字皆視為文字
         is_numeric = s != "" and s.replace(",", "").lstrip("-").replace(".", "", 1).isdigit()
         if is_numeric:
-            self.amount = parsed * (self.unit_price or 0)
+            self.amount = round_half_up(parsed * (self.unit_price or 0))
         else:
-            self.amount = self.amount or 0
+            self.amount = round_half_up(self.amount or 0)
         return self.amount
 
 

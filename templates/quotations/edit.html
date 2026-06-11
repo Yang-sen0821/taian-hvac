@@ -333,7 +333,7 @@ function bindItemRow(tr) {
             if (qtyIsNumeric(qtyEl.value)) {
                 const qty = Number(String(qtyEl.value).replace(/,/g,'')) || 0;
                 const price = parseFloat(priceEl.value) || 0;
-                amountEl.value = qty * price;
+                amountEl.value = Math.round(qty * price);
                 amountEl.readOnly = true;
             } else {
                 amountEl.readOnly = false;
@@ -496,9 +496,9 @@ function calcAll() {
             if (qtyIsNumeric(qtyRaw)) {
                 const qty = Number(String(qtyRaw).replace(/,/g,'')) || 0;
                 const price = parseFloat(tr.querySelector('.item-price').value) || 0;
-                amount = qty * price;
+                amount = Math.round(qty * price);
             } else {
-                amount = parseFloat(tr.querySelector('.item-amount').value) || 0;
+                amount = Math.round(parseFloat(tr.querySelector('.item-amount').value) || 0);
             }
             sub += amount;
         });
