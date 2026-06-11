@@ -145,11 +145,20 @@
                     </div>
                     <div style="flex: 1;">
                         <div class="small text-muted mb-1">客戶簽名</div>
+                        {% if sig and sig.status == 'signed' and sig.signature_png %}
+                        <img src="{{ sig.signature_png }}" alt="客戶簽名"
+                             style="height: 50px; width: 100%; object-fit: contain; border: 1px solid #aaa; border-radius: 4px; background: #fff;">
+                        {% else %}
                         <div style="height: 50px; border: 1px solid #aaa; border-radius: 4px;"></div>
+                        {% endif %}
                     </div>
                     <div style="flex: 1;">
                         <div class="small text-muted mb-1">日期</div>
+                        {% if sig and sig.status == 'signed' %}
+                        <div style="height: 50px; border-bottom: 1.5px solid #333; display: flex; align-items: flex-end; justify-content: center; font-weight: 600;">{{ sig_date }}</div>
+                        {% else %}
                         <div style="height: 50px; border-bottom: 1.5px solid #333;"></div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -247,7 +256,56 @@
     <a href="/quotations/{{ q.id }}/print" class="btn btn-outline-primary">
         <i class="bi bi-printer"></i> 列印 / 合約版
     </a>
+
+    <!-- 電子簽名管理 -->
+    {% if sig and sig.status == 'signed' %}
+    <span class="btn btn-success" style="pointer-events:none;">
+        <i class="bi bi-vector-pen"></i> 已簽署 {{ sig_date }}
+    </span>
+    <form method="post" action="/quotations/{{ q.id }}/void-signature" class="d-inline"
+          onsubmit="return confirm('作廢後此簽名失效、報價單可重新修改，修改後需請客戶重新簽名。確定作廢？');">
+        <button type="submit" class="btn btn-outline-danger">
+            <i class="bi bi-x-octagon"></i> 作廢簽名
+        </button>
+    </form>
+    {% elif sig and sig.status == 'pending' %}
+    <button type="button" class="btn btn-outline-success" id="copySignLink"
+            data-link="{{ request.url_root }}sign/{{ sig.token }}">
+        <i class="bi bi-clipboard"></i> 複製簽名連結
+    </button>
+    <form method="post" action="/quotations/{{ q.id }}/sign-link" class="d-inline"
+          onsubmit="return confirm('重新產生後，先前傳給客戶的舊連結將失效。確定？');">
+        <button type="submit" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-repeat"></i> 重新產生
+        </button>
+    </form>
+    {% else %}
+    <form method="post" action="/quotations/{{ q.id }}/sign-link" class="d-inline">
+        <button type="submit" class="btn btn-outline-success">
+            <i class="bi bi-vector-pen"></i> 產生簽名連結
+        </button>
+    </form>
+    {% endif %}
 </div>
+
+<script>
+(function () {
+    const btn = document.getElementById('copySignLink');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const link = btn.dataset.link;
+        const done = () => {
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> 已複製，請貼給客戶';
+            setTimeout(() => { btn.innerHTML = '<i class="bi bi-clipboard"></i> 複製簽名連結'; }, 2500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(done, () => prompt('請手動複製連結：', link));
+        } else {
+            prompt('請手動複製連結：', link);
+        }
+    });
+})();
+</script>
 
 <style>
 @media print {

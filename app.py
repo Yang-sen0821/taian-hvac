@@ -6,7 +6,7 @@ from auth import check_login
 from sheets_client import get_sheet
 from blueprints.customers import customers_bp
 from blueprints.inventory import inventory_bp
-from blueprints.quotations import quotations_bp
+from blueprints.quotations import quotations_bp, sign_bp
 from blueprints.shipping import shipping_bp
 from blueprints.purchases import purchases_bp
 from blueprints.transactions import transactions_bp, compute_dashboard
@@ -28,6 +28,7 @@ with app.app_context():
 app.register_blueprint(customers_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(quotations_bp)
+app.register_blueprint(sign_bp)      # 公開簽名頁 /sign/<token>（免登入）
 app.register_blueprint(shipping_bp)
 app.register_blueprint(purchases_bp)
 app.register_blueprint(transactions_bp)

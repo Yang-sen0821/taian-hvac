@@ -419,16 +419,25 @@
             {% endif %}
         </div>
 
-        <!-- 客戶簽名空白框 -->
+        <!-- 客戶簽名：已簽署顯示簽名圖，未簽署為空白框 -->
         <div class="sign-box">
             <label>客戶簽名：</label>
+            {% if sig and sig.status == 'signed' and sig.signature_png %}
+            <img src="{{ sig.signature_png }}" alt="客戶簽名"
+                 style="width:100%; height:80px; object-fit:contain; border:1.5px solid #888; border-radius:4px; background:#fff;">
+            {% else %}
             <div class="blank-sig"></div>
+            {% endif %}
         </div>
 
-        <!-- 日期空白 -->
+        <!-- 日期：已簽署帶入簽署時間 -->
         <div class="sign-box">
             <label>日期：</label>
+            {% if sig and sig.status == 'signed' %}
+            <div class="date-blank" style="color:#111; font-weight:700;">{{ sig_date }}</div>
+            {% else %}
             <div class="date-blank"></div>
+            {% endif %}
         </div>
     </div>
 
@@ -438,6 +447,89 @@
     </div>
 
 </div><!-- /page -->
+
+{% if sign_mode == 'sign' %}
+<!-- ══ 簽名模式（客戶端）：底部固定簽名板 ══ -->
+<style>
+    body { padding-bottom: 300px; }
+    .signbar {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
+        background: #fff; border-top: 3px solid #1565c0;
+        box-shadow: 0 -4px 16px rgba(0,0,0,.15);
+        padding: 12px 16px 16px; max-width: 210mm; margin: 0 auto;
+    }
+    .signbar h4 { font-size: 15px; margin-bottom: 8px; color: #1565c0; }
+    .signbar canvas {
+        width: 100%; height: 150px; border: 1.5px dashed #888;
+        border-radius: 6px; background: #fff; touch-action: none; display: block;
+    }
+    .signbar .btns { display: flex; gap: 10px; margin-top: 10px; }
+    .signbar button {
+        flex: 1; padding: 12px 0; font-size: 16px; font-weight: 700;
+        border-radius: 6px; border: none; cursor: pointer;
+    }
+    .signbar .btn-clear { background: #eee; color: #333; }
+    .signbar .btn-ok { background: #1565c0; color: #fff; }
+    .signbar .hint { font-size: 12px; color: #666; margin-top: 6px; text-align: center; }
+    @media print { .signbar { display: none; } }
+</style>
+<div class="signbar">
+    <h4><i class="bi bi-vector-pen"></i> 請詳閱上方報價合約內容後，於下方框內簽名</h4>
+    <canvas id="sigpad"></canvas>
+    <form id="sigform" method="post" action="">
+        <input type="hidden" name="signature" id="sigdata">
+        <div class="btns">
+            <button type="button" class="btn-clear" id="sigclear">清除重簽</button>
+            <button type="submit" class="btn-ok">確認簽名送出</button>
+        </div>
+    </form>
+    <div class="hint">送出後將顯示完整簽署畫面並鎖定本報價單內容</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+(function () {
+    const canvas = document.getElementById('sigpad');
+    function resize() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const data = pad ? pad.toData() : null;
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        if (pad && data) pad.fromData(data);
+    }
+    let pad = null;
+    resize();
+    pad = new SignaturePad(canvas, { minWidth: 1, maxWidth: 2.5 });
+    window.addEventListener('resize', resize);
+    document.getElementById('sigclear').addEventListener('click', () => pad.clear());
+    document.getElementById('sigform').addEventListener('submit', (e) => {
+        if (pad.isEmpty()) {
+            e.preventDefault();
+            alert('請先在框內簽名');
+            return;
+        }
+        document.getElementById('sigdata').value = pad.toDataURL('image/png');
+    });
+})();
+</script>
+{% elif sign_mode == 'signed' %}
+<!-- ══ 已簽署憑證畫面（客戶端）：頂部橫幅提示截圖 ══ -->
+<style>
+    body { padding-top: 86px; }
+    .signedbar {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+        background: #2e7d32; color: #fff; text-align: center;
+        padding: 12px 16px; font-size: 15px; font-weight: 700;
+        box-shadow: 0 2px 10px rgba(0,0,0,.2);
+    }
+    .signedbar .sub { font-size: 13px; font-weight: 400; margin-top: 4px; }
+    @media print { .signedbar { display: none; } body { padding-top: 0; } }
+</style>
+<div class="signedbar">
+    ✅ 簽署完成（{{ sig_date }}）
+    <div class="sub">本頁即為完整簽署憑證，建議您<u>截圖保存</u>此畫面作為訂購證明</div>
+</div>
+{% endif %}
 
 </body>
 </html>

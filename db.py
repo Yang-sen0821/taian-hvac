@@ -461,3 +461,28 @@ class ShippingItem(db.Model):
     is_gift = db.Column(db.Boolean, default=False)                    # 是否為贈品
 
     shipping_order = db.relationship("ShippingOrder", back_populates="items")
+
+
+class QuoteSignature(db.Model):
+    """報價單電子簽名記錄。
+
+    生命週期：pending（連結已產生待簽）→ signed（已簽署，報價單鎖定）
+              / voided（作廢，可重新產生連結）
+    一張報價單同時間最多一筆 pending；signed 後報價單不可返回修改，
+    需先作廢簽名（業務決策：簽的是當下金額，簽後改單需重簽）。
+    """
+    __tablename__ = "quote_signatures"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    quotation_id = db.Column(db.Integer, db.ForeignKey("quotations.id"), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False)      # 公開簽名連結的亂數憑證
+    status = db.Column(db.String(20), default="pending")               # pending / signed / voided
+    signature_png = db.Column(db.Text, default="")                     # 簽名圖 data URI（base64 PNG）
+    signer_ip = db.Column(db.String(64), default="")                   # 簽署來源 IP（存證）
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime)                                # 未簽過期時間（7 天）
+    signed_at = db.Column(db.DateTime)                                 # 簽署時間（UTC，顯示時 +8）
+
+    def is_expired(self):
+        return (self.status == "pending" and self.expires_at is not None
+                and datetime.utcnow() > self.expires_at)

@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import base64
+import uuid as _uuid
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from auth import login_required
 from sheets_client import get_sheet, append_row
@@ -169,8 +170,10 @@ def detail(quote_id):
     if not q:
         flash("找不到該報價單（可能已被刪除）")
         return redirect(url_for("quotations.list_quotes"))
+    sig = _sig_for(quote_id)
     return render_template("quotations/detail.html", q=q, idx=quote_id,
-                           stamp_uri=_stamp_data_uri(q.company))
+                           stamp_uri=_stamp_data_uri(q.company),
+                           sig=sig, sig_date=_tw_time(sig.signed_at) if sig else "")
 
 
 @quotations_bp.route("/<int:quote_id>/edit", methods=["GET", "POST"])
@@ -244,8 +247,10 @@ def print_quote(quote_id):
         return redirect(url_for("quotations.list_quotes"))
     # 報價日期轉民國年（格式「民國 NNN/M/D」）；解析失敗則回傳原字串
     roc_date = _to_roc_date(q.quote_date)
+    sig = _sig_for(quote_id)
     return render_template("quotations/print.html", q=q, roc_date=roc_date,
-                           stamp_uri=_stamp_data_uri(q.company))
+                           stamp_uri=_stamp_data_uri(q.company),
+                           sig=sig, sig_date=_tw_time(sig.signed_at) if sig else "")
 
 
 def _to_roc_date(date_str):
@@ -264,12 +269,73 @@ def _to_roc_date(date_str):
         return str(date_str)
 
 
+def _sig_for(quote_id):
+    """取報價單目前有效簽名記錄：signed 優先，否則未過期的 pending；無則 None。"""
+    from db import QuoteSignature
+    signed = (QuoteSignature.query.filter_by(quotation_id=quote_id, status="signed")
+              .order_by(QuoteSignature.id.desc()).first())
+    if signed:
+        return signed
+    pending = (QuoteSignature.query.filter_by(quotation_id=quote_id, status="pending")
+               .order_by(QuoteSignature.id.desc()).first())
+    if pending and not pending.is_expired():
+        return pending
+    return None
+
+
+def _tw_time(dt):
+    """UTC datetime → 台灣時間字串（簽署日期顯示用）。"""
+    if not dt:
+        return ""
+    return (dt + datetime.timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
+
+
+@quotations_bp.route("/<int:quote_id>/sign-link", methods=["POST"])
+@login_required
+def create_sign_link(quote_id):
+    """產生（或重新產生）客戶簽名連結：7 天有效，重新產生時舊連結即失效。"""
+    from db import Quotation, QuoteSignature
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        flash("找不到該報價單")
+        return redirect(url_for("quotations.list_quotes"))
+    if QuoteSignature.query.filter_by(quotation_id=quote_id, status="signed").count() > 0:
+        flash("此報價單已簽署；如需重簽請先按「作廢簽名」", "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    for s in QuoteSignature.query.filter_by(quotation_id=quote_id, status="pending").all():
+        s.status = "voided"
+    sig = QuoteSignature(
+        quotation_id=quote_id,
+        token=_uuid.uuid4().hex,
+        expires_at=datetime.datetime.utcnow() + datetime.timedelta(days=7),
+    )
+    db.session.add(sig)
+    db.session.commit()
+    flash("簽名連結已產生（7 天內有效），請複製傳給客戶")
+    return redirect(url_for("quotations.detail", quote_id=quote_id))
+
+
+@quotations_bp.route("/<int:quote_id>/void-signature", methods=["POST"])
+@login_required
+def void_signature(quote_id):
+    """作廢簽名／待簽連結：簽署鎖定解除，報價單可再返回修改或重新產生連結。"""
+    from db import QuoteSignature
+    sigs = (QuoteSignature.query.filter_by(quotation_id=quote_id)
+            .filter(QuoteSignature.status.in_(("pending", "signed"))).all())
+    for s in sigs:
+        s.status = "voided"
+    db.session.commit()
+    flash("簽名／連結已作廢，可重新編輯或重新產生連結" if sigs else "目前沒有可作廢的簽名")
+    return redirect(url_for("quotations.detail", quote_id=quote_id))
+
+
 @quotations_bp.route("/<int:quote_id>/reopen", methods=["POST"])
 @login_required
 def reopen_quote(quote_id):
     """已確認/已取消的報價單退回草稿以重新編輯。
-    已轉出貨單者擋下（涉及出貨/帳務），提示先到出貨單按「返還報價單」。"""
-    from db import Quotation, ShippingOrder
+    已轉出貨單者擋下（涉及出貨/帳務），提示先到出貨單按「返還報價單」；
+    客戶已簽署者擋下（簽的是當下金額），提示先作廢簽名。"""
+    from db import Quotation, ShippingOrder, QuoteSignature
     q = db.session.get(Quotation, quote_id)
     if not q:
         flash("找不到該報價單")
@@ -279,6 +345,9 @@ def reopen_quote(quote_id):
         return redirect(url_for("quotations.detail", quote_id=quote_id))
     if ShippingOrder.query.filter_by(quotation_id=q.id).count() > 0:
         flash("此報價單已轉出貨單，請先到該出貨單按「返還報價單」，返還後即可重新編輯", "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    if QuoteSignature.query.filter_by(quotation_id=q.id, status="signed").count() > 0:
+        flash("此報價單客戶已簽署（簽署即鎖定金額）；如確定要修改，請先按「作廢簽名」再返回修改，修改後需請客戶重簽", "warning")
         return redirect(url_for("quotations.detail", quote_id=quote_id))
     q.status = "草稿"
     db.session.commit()
@@ -400,3 +469,51 @@ def item_prices():
         if len(results) >= 5:
             break
     return jsonify(results)
+
+
+# ══ 公開簽名頁（客戶端，免登入，由 app.py 另行註冊） ══════════════
+sign_bp = Blueprint("signing", __name__, url_prefix="/sign")
+
+
+@sign_bp.route("/<token>", methods=["GET", "POST"])
+def sign_page(token):
+    """客戶簽名頁：以 token 開啟合約版全文，底部簽名板。
+
+    GET  pending → 合約 + 簽名板；signed → 完整簽署憑證畫面（提示截圖）
+    POST 接收簽名 data URI → 存檔、記時間與 IP、報價單鎖定為「已確認」
+    無效/過期/作廢 token → 404 友善頁
+    """
+    from db import Quotation, QuoteSignature
+    sig = QuoteSignature.query.filter_by(token=token).first()
+    if not sig or sig.status == "voided" or sig.is_expired():
+        return render_template("quotations/sign_invalid.html"), 404
+    q = db.session.get(Quotation, sig.quotation_id)
+    if not q:
+        return render_template("quotations/sign_invalid.html"), 404
+
+    if request.method == "POST" and sig.status == "pending":
+        data = request.form.get("signature", "")
+        valid = data.startswith("data:image/png;base64,") and len(data) <= 800_000
+        if valid:
+            try:
+                base64.b64decode(data.split(",", 1)[1], validate=True)
+            except Exception:
+                valid = False
+        if not valid:
+            # 資料異常（空簽名由前端擋）：回到簽名頁重試
+            return redirect(url_for("signing.sign_page", token=token))
+        sig.signature_png = data
+        sig.status = "signed"
+        sig.signed_at = datetime.datetime.utcnow()
+        fwd = request.headers.get("X-Forwarded-For", "")
+        sig.signer_ip = (fwd.split(",")[0].strip() if fwd else (request.remote_addr or ""))[:64]
+        q.status = "已確認"   # 簽署即鎖單：未作廢簽名前不可返回修改
+        db.session.commit()
+        return redirect(url_for("signing.sign_page", token=token))
+
+    mode = "signed" if sig.status == "signed" else "sign"
+    return render_template("quotations/print.html", q=q,
+                           roc_date=_to_roc_date(q.quote_date),
+                           stamp_uri=_stamp_data_uri(q.company),
+                           sig=sig, sig_date=_tw_time(sig.signed_at),
+                           sign_mode=mode, sign_token=token)
