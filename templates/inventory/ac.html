@@ -35,9 +35,7 @@
             <tr>
                 <th>廠牌型號規格</th>
                 <th>庫存數量</th>
-                <th>實際庫存</th>
                 <th>備註</th>
-                <th>註明</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -51,12 +49,10 @@
                         {% endif %}
                         {{ item['廠牌型號規格'] }}
                     </td>
-                    <td>{{ item.get('庫存數量','-') }}</td>
-                    <td>{{ item.get('實際庫存','-') }}</td>
+                    <td class="fw-bold">{{ item._qty }}</td>
                     <td>{{ item.get('備註','-') or '-' }}</td>
-                    <td>{{ item.get('註明','') }}</td>
                     <td>
-                        <a href="/inventory/ac/{{ item._idx }}/edit" class="btn btn-sm btn-outline-primary">
+                        <a href="/inventory/ac/{{ item.id }}/edit" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i> 編輯
                         </a>
                     </td>
@@ -64,7 +60,7 @@
                 {% endfor %}
             {% else %}
             <tr>
-                <td colspan="7" class="text-center text-muted py-4">
+                <td colspan="4" class="text-center text-muted py-4">
                     {% if request.args.get('q') %}
                     找不到符合條件的冷氣庫存
                     {% else %}
@@ -94,23 +90,17 @@
                     </div>
                 </div>
                 <div class="row mt-3">
-                    <div class="col-6">
+                    <div class="col-12">
                         <div class="text-center">
                             <p class="text-muted small mb-1">庫存數量</p>
-                            <p class="fs-5 fw-bold">{{ item.get('庫存數量',0) }}</p>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center">
-                            <p class="text-muted small mb-1">實際庫存</p>
-                            <p class="fs-5 fw-bold">{{ item.get('實際庫存',0) }}</p>
+                            <p class="fs-5 fw-bold">{{ item._qty }}</p>
                         </div>
                     </div>
                 </div>
                 {% if item.get('備註') %}
                 <p class="card-text small mt-2 text-muted">備註：{{ item['備註'] }}</p>
                 {% endif %}
-                <a href="/inventory/ac/{{ item._idx }}/edit" class="btn btn-sm btn-outline-primary w-100 mt-3">
+                <a href="/inventory/ac/{{ item.id }}/edit" class="btn btn-sm btn-outline-primary w-100 mt-3">
                     <i class="bi bi-pencil"></i> 編輯
                 </a>
             </div>

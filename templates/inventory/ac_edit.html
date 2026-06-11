@@ -12,27 +12,24 @@
                 <!-- 品名顯示（唯讀） -->
                 <div class="mb-4 p-3 bg-light rounded">
                     <p class="text-muted small mb-1">品名</p>
-                    <h3 class="mb-0">{{ item.brand }} {{ item.model }}</h3>
-                    {% if item.spec %}
-                    <p class="text-muted small mt-2 mb-0">{{ item.spec }}</p>
-                    {% endif %}
+                    <h3 class="mb-0">{{ item.spec }}</h3>
                 </div>
 
                 <!-- 編輯表單 -->
                 <form method="post" action="/inventory/ac/{{ item.id }}/edit">
                     <!-- 實際庫存數量 -->
                     <div class="mb-3">
-                        <label for="qty" class="form-label">實際庫存數量 <span class="text-danger">*</span></label>
+                        <label for="qty" class="form-label">庫存數量 <span class="text-danger">*</span></label>
                         <input
                             type="number"
                             class="form-control"
                             id="qty"
                             name="qty"
-                            value="{{ item.actual_qty }}"
+                            value="{{ item.actual_qty or item.system_qty or 0 }}"
                             min="0"
                             required
                         >
-                        <small class="form-text text-muted">輸入目前實際庫存的數量</small>
+                        <small class="form-text text-muted">目前庫存數量；出貨單確認出貨時系統會自動扣除</small>
                     </div>
 
                     <!-- 備註 -->

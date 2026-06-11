@@ -28,19 +28,10 @@
                     <input type="text" class="form-control" id="spec" name="spec" required>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="system_qty" class="form-label">庫存數量</label>
-                            <input type="number" class="form-control" id="system_qty" name="system_qty" value="0" min="0">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="actual_qty" class="form-label">實際庫存</label>
-                            <input type="number" class="form-control" id="actual_qty" name="actual_qty" value="0" min="0">
-                        </div>
-                    </div>
+                <div class="mb-3">
+                    <label for="qty" class="form-label">庫存數量</label>
+                    <input type="number" class="form-control" id="qty" name="qty" value="0" min="0">
+                    <small class="form-text text-muted">出貨單確認出貨時系統會自動扣除</small>
                 </div>
 
                 <div class="mb-3">

@@ -22,13 +22,13 @@
                 <form method="post" action="/inventory/gifts/{{ item.id }}/edit">
                     <!-- 實際庫存數量 -->
                     <div class="mb-3">
-                        <label for="qty" class="form-label">實際庫存數量 <span class="text-danger">*</span></label>
+                        <label for="qty" class="form-label">庫存數量 <span class="text-danger">*</span></label>
                         <input
                             type="number"
                             class="form-control"
                             id="qty"
                             name="qty"
-                            value="{{ item.actual_qty }}"
+                            value="{{ item.qty or 0 }}"
                             min="0"
                             required
                         >

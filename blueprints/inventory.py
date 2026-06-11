@@ -26,20 +26,23 @@ def ac_list():
     low_count = sum(1 for it in get_sheet("冷氣庫存") if parse_qty(it.get("實際庫存") or it.get("庫存數量")) <= LOW_STOCK_THRESHOLD)
     return render_template("inventory/ac.html", items=items, low_count=low_count, q=q)
 
-@inventory_bp.route("/ac/<int:idx>/edit", methods=["GET", "POST"])
+@inventory_bp.route("/ac/<int:item_id>/edit", methods=["GET", "POST"])
 @login_required
-def ac_edit(idx):
-    items = get_sheet("冷氣庫存")
-    if idx >= len(items):
+def ac_edit(item_id):
+    # 以資料庫 id 直接定位（原以位置索引定位，與模板的 item.id 不一致，
+    # 導致更新到錯誤列或未更新——姵回報「編輯完數字不會變」的根因）
+    from db import db as _db, ACInventory
+    item = _db.session.get(ACInventory, item_id)
+    if not item:
+        flash("找不到該庫存品項", "warning")
         return redirect(url_for("inventory.ac_list"))
-    item = dict(items[idx])
     if request.method == "POST":
-        item["實際庫存"] = request.form.get("qty", "")
-        item["備註"] = request.form.get("note", "")
-        update_row("冷氣庫存", idx, item)
-        flash(f"✅ 庫存已更新：{item.get('廠牌型號規格','')}")
+        item.actual_qty = request.form.get("qty", "")
+        item.note = request.form.get("note", "")
+        _db.session.commit()
+        flash(f"✅ 庫存已更新：{item.spec}")
         return redirect(url_for("inventory.ac_list"))
-    return render_template("inventory/ac_edit.html", item=item, idx=idx)
+    return render_template("inventory/ac_edit.html", item=item)
 
 @inventory_bp.route("/gifts")
 @login_required
@@ -53,20 +56,22 @@ def gift_list():
     low_count = sum(1 for it in items if it["_low"])
     return render_template("inventory/gifts.html", items=items, low_count=low_count)
 
-@inventory_bp.route("/gifts/<int:idx>/edit", methods=["GET", "POST"])
+@inventory_bp.route("/gifts/<int:item_id>/edit", methods=["GET", "POST"])
 @login_required
-def gift_edit(idx):
-    items = get_sheet("贈品庫存")
-    if idx >= len(items):
+def gift_edit(item_id):
+    # 同 ac_edit：以 id 定位，修正模板 item.id 與位置索引不一致的問題
+    from db import db as _db, GiftInventory
+    item = _db.session.get(GiftInventory, item_id)
+    if not item:
+        flash("找不到該贈品品項", "warning")
         return redirect(url_for("inventory.gift_list"))
-    item = dict(items[idx])
     if request.method == "POST":
-        item["庫存數量"] = request.form.get("qty", "")
-        item["備註"] = request.form.get("note", "")
-        update_row("贈品庫存", idx, item)
-        flash(f"✅ 庫存已更新：{item.get('名稱','')}")
+        item.qty = request.form.get("qty", "")
+        item.note = request.form.get("note", "")
+        _db.session.commit()
+        flash(f"✅ 庫存已更新：{item.name}")
         return redirect(url_for("inventory.gift_list"))
-    return render_template("inventory/gift_edit.html", item=item, idx=idx)
+    return render_template("inventory/gift_edit.html", item=item)
 
 
 @inventory_bp.route("/ac/new", methods=["GET", "POST"])
@@ -74,10 +79,11 @@ def gift_edit(idx):
 def ac_new():
     from db import db as _db, ACInventory
     if request.method == "POST":
+        qty = request.form.get("qty", "0")
         item = ACInventory(
             spec=request.form.get("spec", ""),
-            system_qty=request.form.get("system_qty", "0"),
-            actual_qty=request.form.get("actual_qty", "0"),
+            system_qty=qty,      # 帳面與實際同步建立，UI 僅呈現單一庫存數
+            actual_qty=qty,
             note=request.form.get("note", "")
         )
         _db.session.add(item)
