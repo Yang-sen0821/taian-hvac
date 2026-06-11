@@ -236,6 +236,13 @@
     <a href="/quotations/{{ q.id }}/edit" class="btn btn-outline-secondary">
         <i class="bi bi-pencil-square"></i> 編輯
     </a>
+    {% elif q.status in ('已確認', '已取消') %}
+    <form method="post" action="/quotations/{{ q.id }}/reopen" class="d-inline"
+          onsubmit="return confirm('將「{{ q.status }}」退回草稿以重新編輯？');">
+        <button type="submit" class="btn btn-outline-warning">
+            <i class="bi bi-arrow-counterclockwise"></i> 返回修改
+        </button>
+    </form>
     {% endif %}
     <a href="/quotations/{{ q.id }}/print" class="btn btn-outline-primary">
         <i class="bi bi-printer"></i> 列印 / 合約版

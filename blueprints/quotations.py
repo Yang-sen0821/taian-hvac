@@ -264,6 +264,28 @@ def _to_roc_date(date_str):
         return str(date_str)
 
 
+@quotations_bp.route("/<int:quote_id>/reopen", methods=["POST"])
+@login_required
+def reopen_quote(quote_id):
+    """已確認/已取消的報價單退回草稿以重新編輯。
+    已轉出貨單者擋下（涉及出貨/帳務），提示先到出貨單按「返還報價單」。"""
+    from db import Quotation, ShippingOrder
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        flash("找不到該報價單")
+        return redirect(url_for("quotations.list_quotes"))
+    if q.status not in ("已確認", "已取消"):
+        flash("目前狀態（{}）不可返回修改".format(q.status), "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    if ShippingOrder.query.filter_by(quotation_id=q.id).count() > 0:
+        flash("此報價單已轉出貨單，請先到該出貨單按「返還報價單」，返還後即可重新編輯", "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    q.status = "草稿"
+    db.session.commit()
+    flash(f"報價單 {q.quote_number} 已退回草稿，可重新編輯")
+    return redirect(url_for("quotations.edit_quote", quote_id=quote_id))
+
+
 @quotations_bp.route("/delete", methods=["POST"])
 @login_required
 def delete_quotes():

@@ -147,6 +147,9 @@ def material_edit(idx):
         return redirect(url_for("inventory.material_list"))
     item = dict(items[idx])
     if request.method == "POST":
+        new_name = request.form.get("name", "").strip()
+        if new_name:                      # 空白不覆蓋，避免誤清品名
+            item["名稱"] = new_name
         item["庫存數量"] = request.form.get("qty", "")
         item["備註"] = request.form.get("note", "")
         update_row("材料庫存", idx, item)

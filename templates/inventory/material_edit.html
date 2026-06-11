@@ -9,14 +9,23 @@
 
         <div class="card">
             <div class="card-body">
-                <!-- 品名顯示（唯讀） -->
-                <div class="mb-4 p-3 bg-light rounded">
-                    <p class="text-muted small mb-1">品名</p>
-                    <h3 class="mb-0">{{ item['名稱'] }}</h3>
-                </div>
-
                 <!-- 編輯表單 -->
                 <form method="post" action="/inventory/materials/{{ idx }}/edit">
+                    <!-- 品名（可修改） -->
+                    <div class="mb-3">
+                        <label for="name" class="form-label">品名 <span class="text-danger">*</span></label>
+                        <input
+                            type="text"
+                            class="form-control"
+                            id="name"
+                            name="name"
+                            value="{{ item['名稱'] }}"
+                            maxlength="200"
+                            required
+                        >
+                        <small class="form-text text-muted">修改後報價單搜尋將以新品名為準</small>
+                    </div>
+
                     <!-- 庫存數量 -->
                     <div class="mb-3">
                         <label for="qty" class="form-label">庫存數量 <span class="text-danger">*</span></label>
