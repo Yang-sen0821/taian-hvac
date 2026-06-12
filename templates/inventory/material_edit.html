@@ -10,7 +10,7 @@
         <div class="card">
             <div class="card-body">
                 <!-- 編輯表單 -->
-                <form method="post" action="/inventory/materials/{{ idx }}/edit">
+                <form method="post" action="/inventory/materials/{{ item_id }}/edit">
                     <!-- 品名（可修改） -->
                     <div class="mb-3">
                         <label for="name" class="form-label">品名 <span class="text-danger">*</span></label>
@@ -63,6 +63,15 @@
                             <i class="bi bi-x-circle"></i> 取消
                         </a>
                     </div>
+                </form>
+
+                <!-- 刪除區塊 -->
+                <hr class="mt-4">
+                <form method="post" action="/inventory/materials/{{ item_id }}/delete"
+                      onsubmit="return confirm('確定刪除「{{ item['名稱'] }}」？此操作無法復原。')">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-trash"></i> 刪除此品項
+                    </button>
                 </form>
             </div>
         </div>

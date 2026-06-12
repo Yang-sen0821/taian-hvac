@@ -115,16 +115,17 @@ def gift_new():
 @inventory_bp.route("/materials")
 @login_required
 def material_list():
-    items = get_sheet("材料庫存")
+    all_items = get_sheet("材料庫存")
+    low_count = sum(1 for it in all_items if parse_qty(it.get("庫存數量")) <= LOW_STOCK_THRESHOLD)
+    # 依名稱排序，同類品相自然相鄰
+    items = sorted(all_items, key=lambda x: (x.get("名稱") or "").upper())
     q = request.args.get("q", "").strip()
-    for i, item in enumerate(items):
+    for item in items:
         qty = parse_qty(item.get("庫存數量"))
         item["_qty"] = qty
         item["_low"] = qty <= LOW_STOCK_THRESHOLD
-        item["_idx"] = i
     if q:
         items = [it for it in items if q in str(it.get("名稱", ""))]
-    low_count = sum(1 for it in get_sheet("材料庫存") if parse_qty(it.get("庫存數量")) <= LOW_STOCK_THRESHOLD)
     return render_template("inventory/materials.html", items=items, low_count=low_count, q=q)
 
 
@@ -145,20 +146,36 @@ def material_new():
     return render_template("inventory/material_new.html")
 
 
-@inventory_bp.route("/materials/<int:idx>/edit", methods=["GET", "POST"])
+@inventory_bp.route("/materials/<int:item_id>/edit", methods=["GET", "POST"])
 @login_required
-def material_edit(idx):
-    items = get_sheet("材料庫存")
-    if idx >= len(items):
+def material_edit(item_id):
+    from db import db as _db, Material
+    item = _db.session.get(Material, item_id)
+    if not item:
+        flash("找不到該材料品項", "warning")
         return redirect(url_for("inventory.material_list"))
-    item = dict(items[idx])
     if request.method == "POST":
         new_name = request.form.get("name", "").strip()
-        if new_name:                      # 空白不覆蓋，避免誤清品名
-            item["名稱"] = new_name
-        item["庫存數量"] = request.form.get("qty", "")
-        item["備註"] = request.form.get("note", "")
-        update_row("材料庫存", idx, item)
-        flash(f"✅ 庫存已更新：{item.get('名稱','')}")
+        if new_name:
+            item.name = new_name
+        item.qty = request.form.get("qty", "")
+        item.note = request.form.get("note", "")
+        _db.session.commit()
+        flash(f"✅ 庫存已更新：{item.name}")
         return redirect(url_for("inventory.material_list"))
-    return render_template("inventory/material_edit.html", item=item, idx=idx)
+    return render_template("inventory/material_edit.html", item=item.to_sheet_dict(), item_id=item_id)
+
+
+@inventory_bp.route("/materials/<int:item_id>/delete", methods=["POST"])
+@login_required
+def material_delete(item_id):
+    from db import db as _db, Material
+    item = _db.session.get(Material, item_id)
+    if not item:
+        flash("找不到該材料品項", "warning")
+        return redirect(url_for("inventory.material_list"))
+    name = item.name
+    _db.session.delete(item)
+    _db.session.commit()
+    flash(f"已刪除材料品項「{name}」")
+    return redirect(url_for("inventory.material_list"))
