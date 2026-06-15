@@ -25,6 +25,32 @@ with app.app_context():
     except Exception as e:
         print(f"[init] create_all skipped: {e}")
 
+    # 自動補 sort_order 欄位（拖拉排序用）：create_all 不會為「既有表」加欄位，
+    # 故以 ADD COLUMN IF NOT EXISTS 補上（冪等、非破壞、可逆）。首次補上後若全為 0，
+    # 依顯示順序初始化 0,1,2...，之後拖拉即覆寫。失敗不阻擋啟動。
+    try:
+        from sqlalchemy import text
+        from db import ACInventory, GiftInventory, Material
+        _SORT_TABLES = [
+            ("ac_inventory", ACInventory, lambda o: o.id),
+            ("gift_inventory", GiftInventory, lambda o: o.id),
+            ("material_inventory", Material, lambda o: (o.name or "").upper()),
+        ]
+        for _table, _m, _key in _SORT_TABLES:
+            db.session.execute(text(
+                f"ALTER TABLE {_table} ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0"
+            ))
+        db.session.commit()
+        for _table, _m, _key in _SORT_TABLES:
+            _rows = _m.query.all()
+            if _rows and all((r.sort_order or 0) == 0 for r in _rows):
+                for _idx, _obj in enumerate(sorted(_rows, key=_key)):
+                    _obj.sort_order = _idx
+                db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[init] sort_order migration skipped: {e}")
+
 app.register_blueprint(customers_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(quotations_bp)
