@@ -245,6 +245,9 @@ function buildItemRow(data) {
     const tr = document.createElement('tr');
     tr.className = 'item-row';
     tr.innerHTML = `
+        <td class="text-center align-middle">
+            <i class="bi bi-grip-vertical drag-handle text-muted" style="cursor:grab;font-size:1.2rem;touch-action:none;"></i>
+        </td>
         <td>
             <div class="position-relative">
                 <input type="text" class="form-control item-name" autocomplete="off"
@@ -419,6 +422,7 @@ function buildGroup(data) {
             <table class="table table-bordered align-middle mb-2">
                 <thead class="table-light">
                     <tr>
+                        <th style="width:30px;"></th>
                         <th style="min-width:180px;">品名 / 規格</th>
                         <th style="width:110px;" class="text-center">數量</th>
                         <th style="width:120px;" class="text-center">單價</th>
@@ -470,6 +474,11 @@ function buildGroup(data) {
 
     wrap.querySelector('.add-item-btn').addEventListener('click', () => { tbody.appendChild(buildItemRow({})); calcAll(); });
     wrap.querySelector('.del-group-btn').addEventListener('click', () => { wrap.remove(); calcAll(); });
+
+    // 品項列拖拉排序（握把 .drag-handle，支援手機觸控）；放開後重算金額
+    if (window.Sortable) {
+        Sortable.create(tbody, { handle: '.drag-handle', animation: 150, onEnd: calcAll });
+    }
 
     return wrap;
 }

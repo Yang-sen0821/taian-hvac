@@ -95,6 +95,7 @@ class ACInventory(db.Model):
     system_qty = db.Column(db.String(50), default="")                     # 庫存數量（系統/帳面）
     actual_qty = db.Column(db.String(50), default="")                     # 實際庫存
     note = db.Column(db.Text, default="")                                 # 備註
+    sort_order = db.Column(db.Integer, default=0)                         # 手動排序（拖拉）
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     FIELD_MAP = {
@@ -107,6 +108,7 @@ class ACInventory(db.Model):
     def to_sheet_dict(self):
         d = {cn: (getattr(self, en) or "") for cn, en in self.FIELD_MAP.items()}
         d["id"] = self.id
+        d["sort_order"] = self.sort_order or 0
         return d
 
 
@@ -118,6 +120,7 @@ class GiftInventory(db.Model):
     name = db.Column(db.String(200), default="")                         # 名稱
     qty = db.Column(db.String(50), default="")                           # 庫存數量
     note = db.Column(db.Text, default="")                                # 備註
+    sort_order = db.Column(db.Integer, default=0)                        # 手動排序（拖拉）
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     FIELD_MAP = {
@@ -129,6 +132,7 @@ class GiftInventory(db.Model):
     def to_sheet_dict(self):
         d = {cn: (getattr(self, en) or "") for cn, en in self.FIELD_MAP.items()}
         d["id"] = self.id
+        d["sort_order"] = self.sort_order or 0
         return d
 
 
@@ -145,6 +149,7 @@ class Material(db.Model):
     name = db.Column(db.String(200), default="")                         # 名稱
     qty = db.Column(db.String(50), default="")                           # 庫存數量
     note = db.Column(db.Text, default="")                                # 備註
+    sort_order = db.Column(db.Integer, default=0)                        # 手動排序（拖拉）
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     FIELD_MAP = {
@@ -156,6 +161,7 @@ class Material(db.Model):
     def to_sheet_dict(self):
         d = {cn: (getattr(self, en) or "") for cn, en in self.FIELD_MAP.items()}
         d["id"] = self.id
+        d["sort_order"] = self.sort_order or 0
         return d
 
 

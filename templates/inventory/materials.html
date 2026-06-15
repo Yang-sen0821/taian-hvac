@@ -35,19 +35,26 @@
 
 <!-- 桌機版 Table -->
 <div class="d-none d-md-block table-responsive mb-4">
+    {% if not request.args.get('q') %}
+    <p class="text-muted small mb-2"><i class="bi bi-grip-vertical"></i> 按住左側握把可上下拖拉調整順序，放開即自動儲存</p>
+    {% endif %}
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
+                <th style="width:36px;"></th>
                 <th>名稱</th>
                 <th>庫存數量</th>
                 <th>備註</th>
                 <th>操作</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody {% if not request.args.get('q') %}class="js-sortable" data-reorder-url="/inventory/materials/reorder"{% endif %}>
             {% if items %}
                 {% for item in items %}
-                <tr {% if item._low %}class="table-warning"{% endif %}>
+                <tr data-id="{{ item.id }}" {% if item._low %}class="table-warning"{% endif %}>
+                    <td class="text-center align-middle">
+                        <i class="bi bi-grip-vertical drag-handle text-muted" style="cursor:grab;font-size:1.2rem;"></i>
+                    </td>
                     <td>
                         {% if item._low %}
                         <i class="bi bi-exclamation-triangle-fill text-warning"></i>
@@ -71,7 +78,7 @@
                 {% endfor %}
             {% else %}
             <tr>
-                <td colspan="4" class="text-center text-muted py-4">
+                <td colspan="5" class="text-center text-muted py-4">
                     {% if request.args.get('q') %}
                     找不到符合條件的材料庫存
                     {% else %}
@@ -85,17 +92,25 @@
 </div>
 
 <!-- 手機版卡片 -->
-<div class="d-md-none">
+{% if not request.args.get('q') %}
+<p class="d-md-none text-muted small mb-2"><i class="bi bi-grip-vertical"></i> 按住右上握把可拖拉調整順序</p>
+{% endif %}
+<div class="d-md-none {% if not request.args.get('q') %}js-sortable{% endif %}" data-reorder-url="/inventory/materials/reorder">
     {% if items %}
         {% for item in items %}
-        <div class="card mb-3 {% if item._low %}border-warning{% endif %}">
+        <div class="card mb-3 {% if item._low %}border-warning{% endif %}" data-id="{{ item.id }}">
             <div class="card-body">
-                <h6 class="card-title mb-1">
-                    {% if item._low %}
-                    <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                <div class="d-flex justify-content-between align-items-start">
+                    <h6 class="card-title mb-1">
+                        {% if item._low %}
+                        <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                        {% endif %}
+                        {{ item['名稱'] }}
+                    </h6>
+                    {% if not request.args.get('q') %}
+                    <i class="bi bi-grip-vertical drag-handle text-muted" style="cursor:grab;font-size:1.5rem;touch-action:none;"></i>
                     {% endif %}
-                    {{ item['名稱'] }}
-                </h6>
+                </div>
                 <div class="row mt-3">
                     <div class="col-12">
                         <div class="text-center">
