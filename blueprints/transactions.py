@@ -141,6 +141,9 @@ def list_transactions():
         elif t.type == "expense":
             total_expense += (t.amount or 0)
 
+    # 帳務明細自動依日期排序（新到舊）；日期相同以 id 為次序，日期缺漏/格式錯者排最後
+    rows.sort(key=lambda t: (_parse_date(t.date) or datetime.date.min, t.id), reverse=True)
+
     return render_template("transactions/list.html",
                            transactions=rows,
                            total_income=total_income,
