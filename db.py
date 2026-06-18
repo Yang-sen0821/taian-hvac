@@ -203,6 +203,7 @@ class Quotation(db.Model):
     note = db.Column(db.Text, default="")                                # 備註
     status = db.Column(db.String(20), default="草稿")                    # 狀態
     subsidy_done = db.Column(db.Boolean, default=False)                  # 補助是否已完成（補助清單打勾用）
+    note_color = db.Column(db.String(20), default="")                    # 整單備註文字顏色（#3，空=預設黑）
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     FIELD_MAP = {

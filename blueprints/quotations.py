@@ -37,6 +37,14 @@ _STAMP_FILES = {
 # 三項補助選項：出現在品項打字下拉中（取代原備註勾選框）
 SUBSIDY_OPTIONS = ["可申請貨物稅補助", "可申請汰舊換新補助", "可申請原廠補助"]
 
+# 備註顏色白名單（#3）：值會直接進 inline style，必須後端驗證避免 CSS 注入（Codex 驗收）
+_ALLOWED_NOTE_COLORS = {"", "#d32f2f", "#1565c0", "#2e7d32", "#111111"}
+
+
+def _safe_note_color(v):
+    v = (v or "").strip()
+    return v if v in _ALLOWED_NOTE_COLORS else ""
+
 
 def _stamp_data_uri(company):
     """把對應公司的電子章讀成 base64 data URI 內嵌（離線/列印/截圖都不掉圖）。
@@ -169,6 +177,7 @@ def new_quote():
             note=(payload.get("note") or "").strip(),
             status="草稿",
         )
+        q.note_color = _safe_note_color(payload.get("note_color"))   # 整單備註顏色（#3，後端白名單）
         # 建立群組與細項，金額由後端權威重算（含稅與否由 payload 決定）
         _build_groups_from_payload(q, payload)
         q.recompute_totals(bool(payload.get("taxable", False)))
@@ -234,6 +243,7 @@ def edit_quote(quote_id):
         q.customer_address = (payload.get("customer_address") or "").strip()
         q.install_date     = (payload.get("install_date") or "").strip()
         q.note             = (payload.get("note") or "").strip()
+        q.note_color       = _safe_note_color(payload.get("note_color"))   # 整單備註顏色（#3，後端白名單）
 
         # 先刪掉舊群組（cascade 連帶刪除細項），再依 payload 重建
         q.groups.clear()
@@ -338,19 +348,8 @@ def create_sign_link(quote_id):
     return redirect(url_for("quotations.detail", quote_id=quote_id))
 
 
-@quotations_bp.route("/<int:quote_id>/void-signature", methods=["POST"])
-@login_required
-def void_signature(quote_id):
-    """作廢簽名／待簽連結：簽署鎖定解除，報價單可再返回修改或重新產生連結。"""
-    from db import QuoteSignature
-    sigs = (QuoteSignature.query.filter_by(quotation_id=quote_id)
-            .filter(QuoteSignature.status.in_(("pending", "signed"))).all())
-    for s in sigs:
-        s.status = "voided"
-    db.session.commit()
-    flash("簽名／連結已作廢，可重新編輯或重新產生連結" if sigs else "目前沒有可作廢的簽名")
-    return redirect(url_for("quotations.detail", quote_id=quote_id))
-
+# 舊 /void-signature 已移除（Codex 驗收）：作廢簽名一律走 /void-and-edit（作廢即退回草稿），
+# 避免「只作廢不退回」造成狀態不一致。
 
 @quotations_bp.route("/<int:quote_id>/reopen", methods=["POST"])
 @login_required
@@ -375,6 +374,36 @@ def reopen_quote(quote_id):
     q.status = "草稿"
     db.session.commit()
     flash(f"報價單 {q.quote_number} 已退回草稿，可重新編輯")
+    return redirect(url_for("quotations.edit_quote", quote_id=quote_id))
+
+
+@quotations_bp.route("/<int:quote_id>/void-and-edit", methods=["POST"])
+@login_required
+def void_and_edit(quote_id):
+    """作廢簽名並退回編輯（一鍵，#1）：作廢所有簽名/連結 → 退回草稿 → 進編輯頁（品項自動帶入，
+    不需重打）。已轉出貨單者擋下（保護帳務對應）。"""
+    from db import Quotation, ShippingOrder, QuoteSignature
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        flash("找不到該報價單")
+        return redirect(url_for("quotations.list_quotes"))
+    if ShippingOrder.query.filter_by(quotation_id=q.id).count() > 0:
+        flash("此報價單已轉出貨單，請先到該出貨單按「返還報價單」再修改", "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    if q.status not in ("草稿", "已確認", "已取消"):
+        flash("目前狀態（{}）不可退回編輯".format(q.status), "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    # 前置守衛（Codex 驗收）：必須真的有 pending/signed 簽名才作廢，避免任意單被直接改草稿
+    sigs = (QuoteSignature.query.filter_by(quotation_id=quote_id)
+            .filter(QuoteSignature.status.in_(("pending", "signed"))).all())
+    if not sigs:
+        flash("目前沒有可作廢的簽名；如需編輯請用「退回編輯」", "warning")
+        return redirect(url_for("quotations.detail", quote_id=quote_id))
+    for s in sigs:
+        s.status = "voided"
+    q.status = "草稿"
+    db.session.commit()
+    flash("已作廢簽名並退回草稿，原品項已帶入，可直接修改（修改後需請客戶重新簽名）")
     return redirect(url_for("quotations.edit_quote", quote_id=quote_id))
 
 

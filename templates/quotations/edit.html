@@ -135,7 +135,7 @@
                                 <td class="fw-bold" id="total_label">總金額</td>
                                 <td class="text-end">
                                     <span id="total_display"
-                                          style="font-size: 1.6rem; font-weight: 700; color: #dc3545;">NT$ 0</span>
+                                          style="font-size: clamp(1rem, 5.5vw, 1.6rem); font-weight: 700; color: #dc3545; white-space: nowrap;">NT$ 0</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -160,6 +160,25 @@
                 <div class="col-12 col-md-8">
                     <label for="notes" class="form-label fw-semibold">備註</label>
                     <textarea class="form-control" id="notes" name="notes" rows="3">{{ q.note or '' }}</textarea>
+                    <div class="mt-1 d-flex align-items-center flex-wrap gap-1" id="note_color_palette">
+                        <span class="small text-muted me-1">備註顏色</span>
+                        <input type="hidden" id="note_color_val" value="{{ q.note_color or '' }}">
+                        <button type="button" class="note-color-btn btn btn-sm py-0" data-color="" style="border:1px solid #ccc;">預設</button>
+                        <button type="button" class="note-color-btn" data-color="#d32f2f" title="紅" style="width:22px;height:22px;background:#d32f2f;border:1px solid #999;border-radius:4px;cursor:pointer;"></button>
+                        <button type="button" class="note-color-btn" data-color="#1565c0" title="藍" style="width:22px;height:22px;background:#1565c0;border:1px solid #999;border-radius:4px;cursor:pointer;"></button>
+                        <button type="button" class="note-color-btn" data-color="#2e7d32" title="綠" style="width:22px;height:22px;background:#2e7d32;border:1px solid #999;border-radius:4px;cursor:pointer;"></button>
+                        <button type="button" class="note-color-btn" data-color="#111111" title="黑" style="width:22px;height:22px;background:#111111;border:1px solid #999;border-radius:4px;cursor:pointer;"></button>
+                    </div>
+                    <script>
+                    (function(){
+                        var hid=document.getElementById('note_color_val'), ta=document.getElementById('notes');
+                        function apply(c){ hid.value=c||''; if(ta) ta.style.color=c||''; }
+                        document.querySelectorAll('#note_color_palette .note-color-btn').forEach(function(b){
+                            b.addEventListener('click', function(){ apply(this.dataset.color); });
+                        });
+                        apply(hid.value);
+                    })();
+                    </script>
                 </div>
             </div>
         </div>
@@ -574,6 +593,7 @@ function serializePayload() {
         customer_address: document.getElementById('customer_address').value.trim(),
         install_date: document.getElementById('install_date').value,
         note: document.getElementById('notes').value.trim(),
+        note_color: (function(){ var e=document.getElementById('note_color_val'); return e ? e.value : ''; })(),
         taxable: isTaxable(),
         groups: groups
     };

@@ -3,6 +3,12 @@
 {% block title %}{{ q.quote_number }} — 報價單詳情{% endblock %}
 
 {% block content %}
+<style>
+  /* #5 估價單/合約版用標楷體（僅此文件區，不影響後台 UI）*/
+  #quotation-card, #quotation-card * { font-family: "標楷體","DFKai-SB","BiauKai","KaiTi","微軟正黑體",serif; }
+  /* #7 品項隔行斑馬底色（淺鵝黃，防多品項看錯行）*/
+  #quotation-card tr.zebra > td { background: #fdf6c9; }
+</style>
 <!-- 頂部操作列 -->
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
     <div class="d-flex align-items-center gap-3">
@@ -31,7 +37,7 @@
         <!-- 公司抬頭區 -->
         <div class="row mb-4 pb-3 border-bottom">
             <div class="col-12 col-md-8">
-                <h3 class="fw-bold mb-1" style="font-size: 1.5rem;">
+                <h3 class="fw-bold mb-1" style="font-size: 2rem;">
                     {% if q.company %}
                         {{ q.company }}
                     {% else %}
@@ -91,7 +97,7 @@
                             </td>
                         </tr>
                         {% for it in g.items %}
-                        <tr>
+                        <tr class="{% if loop.index is odd %}zebra{% endif %}">
                             <td style="color: {{ it.color('name') or 'inherit' }};">
                                 {{ it.name }}
                                 {% if it.is_gift %}<span class="badge bg-success ms-1">贈品</span>{% endif %}
@@ -122,7 +128,7 @@
             <!-- 左側：簡式合約條款 + 銀行/證照 + 客戶簽名 -->
             <div class="col-12 col-md-7">
                 <h6 class="text-uppercase text-muted small mb-2 fw-bold">合約條款</h6>
-                <ol class="small mb-3" style="padding-left: 18px; line-height: 1.9;">
+                <ol class="small mb-3" style="line-height: 1.9; background:#fdf6c9; border-radius:4px; padding:8px 8px 8px 26px;">
                     <li>本報價單經業主簽准視同訂購之附件</li>
                     <li>本報價單內未列入部分，不視為工程施作範圍</li>
                     <li>業主未付清該標的物之貨款或交付之票據未全部兌現時，承包商保有該標的物的所有權</li>
@@ -228,7 +234,7 @@
             {% if q.note %}
             <div class="col-12 {% if q.install_date %}col-md-8{% endif %}">
                 <p class="mb-1 text-muted small fw-bold text-uppercase">備註</p>
-                <p class="mb-0" style="white-space: pre-wrap;">{{ q.note }}</p>
+                <p class="mb-0" style="white-space: pre-wrap; color: {{ q.note_color or 'inherit' }};">{{ q.note }}</p>
             </div>
             {% endif %}
         </div>
@@ -242,17 +248,20 @@
     <a href="/quotations/" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> 返回列表
     </a>
-    {% if q.status == '草稿' %}
-    <a href="/quotations/{{ q.id }}/edit" class="btn btn-outline-secondary">
-        <i class="bi bi-pencil-square"></i> 編輯
-    </a>
-    {% elif q.status in ('已確認', '已取消') %}
-    <form method="post" action="/quotations/{{ q.id }}/reopen" class="d-inline"
-          onsubmit="return confirm('將「{{ q.status }}」退回草稿以重新編輯？');">
-        <button type="submit" class="btn btn-outline-warning">
-            <i class="bi bi-arrow-counterclockwise"></i> 返回修改
-        </button>
-    </form>
+    {# 已簽署者不在此顯示編輯/返回修改，改由下方「作廢簽名並退回編輯」一鍵處理（#1）#}
+    {% if not (sig and sig.status == 'signed') %}
+        {% if q.status == '草稿' %}
+        <a href="/quotations/{{ q.id }}/edit" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil-square"></i> 編輯
+        </a>
+        {% elif q.status in ('已確認', '已取消') %}
+        <form method="post" action="/quotations/{{ q.id }}/reopen" class="d-inline"
+              onsubmit="return confirm('將「{{ q.status }}」退回草稿以重新編輯？');">
+            <button type="submit" class="btn btn-outline-warning">
+                <i class="bi bi-arrow-counterclockwise"></i> 退回編輯
+            </button>
+        </form>
+        {% endif %}
     {% endif %}
     <a href="/quotations/{{ q.id }}/print" class="btn btn-outline-primary">
         <i class="bi bi-printer"></i> 列印 / 合約版
@@ -263,10 +272,10 @@
     <span class="btn btn-success" style="pointer-events:none;">
         <i class="bi bi-vector-pen"></i> 已簽署 {{ sig_date }}
     </span>
-    <form method="post" action="/quotations/{{ q.id }}/void-signature" class="d-inline"
-          onsubmit="return confirm('作廢後此簽名失效、報價單可重新修改，修改後需請客戶重新簽名。確定作廢？');">
-        <button type="submit" class="btn btn-outline-danger">
-            <i class="bi bi-x-octagon"></i> 作廢簽名
+    <form method="post" action="/quotations/{{ q.id }}/void-and-edit" class="d-inline"
+          onsubmit="return confirm('作廢此簽名並退回草稿重新編輯（原品項自動帶入）。修改後需請客戶重新簽名。確定？');">
+        <button type="submit" class="btn btn-warning">
+            <i class="bi bi-pencil-square"></i> 作廢簽名並退回編輯
         </button>
     </form>
     {% elif sig and sig.status == 'pending' %}

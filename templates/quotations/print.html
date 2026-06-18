@@ -17,7 +17,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: "微軟正黑體", "Microsoft JhengHei", Arial, sans-serif;
+            font-family: "標楷體", "DFKai-SB", "BiauKai", "KaiTi", "微軟正黑體", "Microsoft JhengHei", serif;
             font-size: 13px;
             color: #111;
             background: #f0f0f0;
@@ -60,7 +60,7 @@
             text-align: center;
         }
         .header-center h1 {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: 900;
             letter-spacing: 3px;
             margin-bottom: 2px;
@@ -261,9 +261,20 @@
             border-radius: 4px;
         }
 
+        /* ===== #7 合約條款淺鵝黃底 + 品項隔行斑馬底色（防看錯行）===== */
+        .contract {
+            background: #fdf6c9;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        .items tr.zebra td {
+            background: #fdf6c9;
+        }
+
         /* ===== 列印媒體查詢 ===== */
         @media print {
-            body { background: #fff; }
+            /* 確保鵝黃底色在 PDF 也印得出來（預設瀏覽器列印會省略背景色）*/
+            body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .action-bar { display: none !important; }
             .page {
                 width: 100%;
@@ -345,7 +356,7 @@
                 </td>
             </tr>
             {% for it in g.items %}
-            <tr>
+            <tr class="item-line{% if loop.index is odd %} zebra{% endif %}">
                 <td class="name" style="color: {{ it.color('name') or 'inherit' }};">{{ it.name }}{% if it.is_gift %}（贈品）{% endif %}</td>
                 <td class="center" style="color: {{ it.color('qty') or 'inherit' }};">{{ it.qty_text or '' }}</td>
                 <td class="right" style="color: {{ it.color('price') or 'inherit' }};">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
@@ -408,7 +419,7 @@
 
     <!-- (e2) 整單備註（顯示於合約文字下方） -->
     {% if q.note %}
-    <div style="font-size:12px; color:#333; margin-bottom:10px; padding:6px 12px; border:1px dashed #bbb; border-radius:4px; white-space:pre-wrap;"><strong>備註：</strong>{{ q.note }}</div>
+    <div style="font-size:12px; color:{{ q.note_color or '#333' }}; margin-bottom:10px; padding:6px 12px; border:1px dashed #bbb; border-radius:4px; white-space:pre-wrap;"><strong>備註：</strong>{{ q.note }}</div>
     {% endif %}
 
     <!-- (f) 銀行帳戶 -->
@@ -456,6 +467,30 @@
     </div>
 
 </div><!-- /page -->
+
+{% if not sign_mode %}
+<script>
+// PDF 單頁 auto-fit：列印前量內容高度，超過一頁就整頁等比縮小（向量文字不失真）。
+// 僅內部列印/PDF；客戶簽名頁（sign_mode）不掛此邏輯（Codex 驗收）。
+(function () {
+    function fitOnePage() {
+        var page = document.querySelector('.page');
+        if (!page) return;
+        page.style.zoom = '';
+        var prevMinH = page.style.minHeight;
+        page.style.minHeight = '0';            // 量真實內容高，不受 min-height 撐高
+        var h = page.scrollHeight;
+        page.style.minHeight = prevMinH;
+        var ONE_PAGE_PX = 1122;                // A4 297mm @96dpi
+        if (h > ONE_PAGE_PX) page.style.zoom = (ONE_PAGE_PX / h).toFixed(4);
+    }
+    window.addEventListener('beforeprint', fitOnePage);
+    window.addEventListener('afterprint', function () {
+        var p = document.querySelector('.page'); if (p) p.style.zoom = '';
+    });
+})();
+</script>
+{% endif %}
 
 {% if sign_mode == 'sign' %}
 <!-- ══ 簽名模式（客戶端）：底部固定簽名板 ══ -->

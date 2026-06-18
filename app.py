@@ -57,10 +57,13 @@ with app.app_context():
         db.session.execute(text(
             "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS subsidy_done BOOLEAN DEFAULT FALSE"
         ))
+        db.session.execute(text(
+            "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS note_color VARCHAR(20) DEFAULT ''"
+        ))
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        print(f"[init] subsidy_done migration skipped: {e}")
+        print(f"[init] subsidy_done/note_color migration skipped: {e}")
 
 app.register_blueprint(customers_bp)
 app.register_blueprint(inventory_bp)
