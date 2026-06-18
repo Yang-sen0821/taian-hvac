@@ -6,8 +6,6 @@
 <style>
   /* #5 估價單/合約版用標楷體（僅此文件區，不影響後台 UI）*/
   #quotation-card, #quotation-card * { font-family: "標楷體","DFKai-SB","BiauKai","KaiTi","微軟正黑體",serif; }
-  /* #7 品項隔行斑馬底色（淺鵝黃，防多品項看錯行）*/
-  #quotation-card tr.zebra > td { background: #fdf6c9; }
 </style>
 <!-- 頂部操作列 -->
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
@@ -97,7 +95,7 @@
                             </td>
                         </tr>
                         {% for it in g.items %}
-                        <tr class="{% if loop.index is odd %}zebra{% endif %}">
+                        <tr>
                             <td style="color: {{ it.color('name') or 'inherit' }};">
                                 {{ it.name }}
                                 {% if it.is_gift %}<span class="badge bg-success ms-1">贈品</span>{% endif %}

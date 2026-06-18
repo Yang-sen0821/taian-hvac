@@ -261,14 +261,11 @@
             border-radius: 4px;
         }
 
-        /* ===== #7 合約條款淺鵝黃底 + 品項隔行斑馬底色（防看錯行）===== */
+        /* ===== #7 合約條款淺鵝黃底（品項斑馬底色依客戶反饋移除，只留合約區）===== */
         .contract {
             background: #fdf6c9;
             padding: 8px 12px;
             border-radius: 4px;
-        }
-        .items tr.zebra td {
-            background: #fdf6c9;
         }
 
         /* ===== 列印媒體查詢 ===== */
@@ -356,7 +353,7 @@
                 </td>
             </tr>
             {% for it in g.items %}
-            <tr class="item-line{% if loop.index is odd %} zebra{% endif %}">
+            <tr>
                 <td class="name" style="color: {{ it.color('name') or 'inherit' }};">{{ it.name }}{% if it.is_gift %}（贈品）{% endif %}</td>
                 <td class="center" style="color: {{ it.color('qty') or 'inherit' }};">{{ it.qty_text or '' }}</td>
                 <td class="right" style="color: {{ it.color('price') or 'inherit' }};">{{ '{:,.0f}'.format(it.unit_price or 0) }}</td>
