@@ -3,8 +3,10 @@ GWS_NODE = r"C:\Users\User\AppData\Roaming\npm\node_modules\@googleworkspace\cli
 SECRET_KEY = "taian-hvac-2026-secret"
 
 USERS = {
-    "admin": {"password": "taian2026", "name": "佳良", "role": "admin"},
-    "pei":   {"password": "pei2026",   "name": "姵❀", "role": "user"},
+    "admin":  {"password": "taian2026", "name": "佳良", "role": "admin"},
+    # 姵的登入帳密（客戶指定 202606 / 202607，2026-06-18）：原為 pei/pei2026，
+    # 客戶用約定帳密登入不到（即反饋「密碼打不開」），改為約定值即修好。
+    "202606": {"password": "202607",    "name": "姵❀", "role": "user"},
 }
 
 COMPANY_OPTIONS = [

@@ -45,21 +45,30 @@
         <ul class="nav nav-pills mb-3">
             <li class="nav-item">
                 <a class="nav-link {% if not type_filter %}active{% endif %}"
-                   href="/transactions/{% if start or end %}?start={{ start }}&end={{ end }}{% endif %}">全部</a>
+                   href="/transactions/?month={{ month }}&start={{ start }}&end={{ end }}">全部</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link {% if type_filter == 'income' %}active{% endif %}"
-                   href="/transactions/?type=income{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}">收入</a>
+                   href="/transactions/?type=income&month={{ month }}&start={{ start }}&end={{ end }}">收入</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link {% if type_filter == 'expense' %}active{% endif %}"
-                   href="/transactions/?type=expense{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}">支出</a>
+                   href="/transactions/?type=expense&month={{ month }}&start={{ start }}&end={{ end }}">支出</a>
             </li>
         </ul>
         <form method="GET" action="/transactions/" class="row g-2 align-items-end">
             <input type="hidden" name="type" value="{{ type_filter }}">
             <div class="col-6 col-md-3">
-                <label class="form-label small mb-1">起始日期</label>
+                <label class="form-label small mb-1">月份</label>
+                <select class="form-select" name="month" onchange="this.form.submit()">
+                    <option value="">全部月份</option>
+                    {% for m in months %}
+                    <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m.replace('-', '/') }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">起始日期（進階）</label>
                 <input type="date" class="form-control" name="start" value="{{ start }}">
             </div>
             <div class="col-6 col-md-3">
@@ -121,15 +130,17 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-edit-date"
+                                    data-id="{{ t.id }}" data-date="{{ t.date or '' }}" title="改日期">
+                                <i class="bi bi-pencil"></i>
+                            </button>
                             {% if t.ref_type == 'manual' %}
                             <form method="POST" action="/transactions/{{ t.id }}/delete" class="d-inline"
-                                  onsubmit="return confirm('確定刪除這筆記錄？');">
+                                  onsubmit="return confirm('確定刪除這筆記錄？此動作無法復原。');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </form>
-                            {% else %}
-                            <span class="text-muted small">自動</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -149,4 +160,42 @@
         {% endif %}
     </div>
 </div>
+
+<!-- 改日期 modal（含「會影響報表」警告） -->
+<div class="modal fade" id="dateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="dateForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil"></i> 修改日期</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning small mb-3">
+            <i class="bi bi-exclamation-triangle"></i> 修改日期會影響報表相關數據，請確認後再儲存。
+          </div>
+          <label class="form-label small mb-1">新日期</label>
+          <input type="date" class="form-control" name="date" id="dateInput" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">確認修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+function openDateEdit(id, date){
+    document.getElementById('dateForm').action = '/transactions/' + id + '/edit-date';
+    document.getElementById('dateInput').value = date;
+    new bootstrap.Modal(document.getElementById('dateModal')).show();
+}
+// data-attribute + delegated handler（避免 t.date 直塞 inline JS 造成注入）— Codex 驗收
+document.querySelectorAll('.btn-edit-date').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        openDateEdit(this.dataset.id, this.dataset.date || '');
+    });
+});
+</script>
 {% endblock %}

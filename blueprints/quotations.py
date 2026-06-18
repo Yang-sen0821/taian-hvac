@@ -109,14 +109,37 @@ def _build_groups_from_payload(q, payload):
 @quotations_bp.route("/")
 @login_required
 def list_quotes():
+    from db import Quotation, QuotationGroup, QuotationItem
+    from sqlalchemy import or_
     quotes = get_sheet("報價單記錄")
     status_filter = request.args.get("status", "")
+    subsidy_filter = request.args.get("subsidy", "")   # "" | "all" | "undone"
     if status_filter:
         quotes = [q for q in quotes if q.get("狀態", "") == status_filter]
+
+    # 哪些報價單「含補助品項」：一次 join 查出（避免 N+1，Codex 驗收），再取其 subsidy_done
+    sub_q_ids = {r[0] for r in db.session.query(QuotationGroup.quotation_id)
+                 .join(QuotationItem, QuotationItem.group_id == QuotationGroup.id)
+                 .filter(or_(*[QuotationItem.name.like("%" + opt + "%") for opt in SUBSIDY_OPTIONS]))
+                 .distinct().all()}
+    sub_done = {}
+    if sub_q_ids:
+        for qo in Quotation.query.filter(Quotation.id.in_(sub_q_ids)).all():
+            sub_done[qo.id] = bool(qo.subsidy_done)
+    for q in quotes:
+        qid = q.get("id")
+        q["_subsidy"] = qid in sub_done
+        q["_subsidy_done"] = sub_done.get(qid, False)
+    if subsidy_filter == "all":
+        quotes = [q for q in quotes if q["_subsidy"]]
+    elif subsidy_filter == "undone":
+        quotes = [q for q in quotes if q["_subsidy"] and not q["_subsidy_done"]]
+
     quotes = list(reversed(quotes))
     for i, q in enumerate(quotes):
         q["_idx"] = i
     return render_template("quotations/list.html", quotes=quotes, status_filter=status_filter,
+                           subsidy_filter=subsidy_filter,
                            statuses=["草稿", "已確認", "已完成", "已取消"])
 
 @quotations_bp.route("/new", methods=["GET", "POST"])
@@ -358,7 +381,7 @@ def reopen_quote(quote_id):
 @quotations_bp.route("/delete", methods=["POST"])
 @login_required
 def delete_quotes():
-    from db import Quotation, ShippingOrder
+    from db import Quotation, ShippingOrder, QuoteSignature
     ids = request.form.getlist("quote_ids")
     deleted = 0
     blocked = []   # 已轉出貨單、不可直接刪除的報價單號
@@ -373,6 +396,8 @@ def delete_quotes():
         if ShippingOrder.query.filter_by(quotation_id=q.id).count() > 0:
             blocked.append(q.quote_number or f"#{q.id}")
             continue
+        # 真刪除：先刪簽名記錄（quote_signatures FK 無 cascade，不先刪 Postgres 擋下 → 500）
+        QuoteSignature.query.filter_by(quotation_id=q.id).delete()
         db.session.delete(q)        # 群組/細項由 cascade 連帶刪除
         deleted += 1
     db.session.commit()
@@ -383,6 +408,20 @@ def delete_quotes():
     return redirect(url_for("quotations.list_quotes"))
 
 
+@quotations_bp.route("/<int:quote_id>/subsidy-toggle", methods=["POST"])
+@login_required
+def subsidy_toggle(quote_id):
+    """補助清單打勾：切換該報價單補助完成狀態，回 JSON（前端 checkbox 即時存檔，無儲存鈕）。"""
+    from db import Quotation
+    q = db.session.get(Quotation, quote_id)
+    if not q:
+        return jsonify({"ok": False, "error": "not found"}), 404
+    # 依前端送來的明確布林值設定（非盲反轉，避免雙擊/多分頁/retry 把狀態寫反）— Codex 驗收
+    q.subsidy_done = (request.form.get("done", "") == "true")
+    db.session.commit()
+    return jsonify({"ok": True, "subsidy_done": q.subsidy_done})
+
+
 @quotations_bp.route("/api/inventory-search")
 @login_required
 def inventory_search():
@@ -390,6 +429,10 @@ def inventory_search():
     q = request.args.get("q", "").strip()
     from db import ACInventory, GiftInventory, Material
     results = []
+    # 三項補助選項排最前，確保打「補助」時不被下方 results[:15] 截斷（Codex 驗收）
+    for s in SUBSIDY_OPTIONS:
+        if not q or q.lower() in s.lower():
+            results.append({"name": s, "type": "補助", "stock": ""})
     for item in ACInventory.query.all():
         name = item.spec or ""
         if not q or q.lower() in name.lower():
@@ -407,10 +450,6 @@ def inventory_search():
                 results.append({"name": name, "type": "材料", "stock": item.qty or "0"})
     except Exception:
         db.session.rollback()
-    # 三項補助選項：在品項打字下拉中一併出現（與品項/材料/贈品同功能），無庫存
-    for s in SUBSIDY_OPTIONS:
-        if not q or q.lower() in s.lower():
-            results.append({"name": s, "type": "補助", "stock": ""})
     return jsonify(results[:15])
 
 

@@ -112,18 +112,23 @@ def compute_dashboard(start_str=None, end_str=None):
 @login_required
 def list_transactions():
     type_filter = request.args.get("type", "")
+    month = request.args.get("month", "")          # YYYY-MM 月份篩選（操作者常用，比起訖日直覺）
     start_str = request.args.get("start", "")
     end_str = request.args.get("end", "")
     start = _parse_date(start_str)
     end = _parse_date(end_str)
 
     txns = Transaction.query.order_by(Transaction.id.desc()).all()
+    # 月份下拉選項：資料中出現過的 YYYY-MM，新到舊
+    months = sorted({(t.date or "")[:7] for t in txns if (t.date or "")[:7]}, reverse=True)
 
     rows = []
     total_income = 0.0
     total_expense = 0.0
     for t in txns:
         d = _parse_date(t.date)
+        if month and not (t.date or "").startswith(month):
+            continue
         if start and (d is None or d < start):
             continue
         if end and (d is None or d > end):
@@ -142,6 +147,7 @@ def list_transactions():
                            total_expense=total_expense,
                            net=total_income - total_expense,
                            type_filter=type_filter,
+                           month=month, months=months,
                            start=start_str, end=end_str)
 
 
@@ -181,4 +187,24 @@ def delete_transaction(txn_id):
     db.session.delete(txn)
     db.session.commit()
     flash("記錄已刪除")
+    return redirect(url_for("transactions.list_transactions"))
+
+
+@transactions_bp.route("/<int:txn_id>/edit-date", methods=["POST"])
+@login_required
+def edit_transaction_date(txn_id):
+    """修改既有進出帳紀錄的日期。前端在 modal 內已警告「會影響報表數據」，這裡再次於 flash 提醒。
+    允許任何紀錄（含出貨/進貨自動產生）改日期，因客戶要求既有紀錄可改；不動來源單據日期。"""
+    txn = db.session.get(Transaction, txn_id)
+    if not txn:
+        flash("找不到該筆記錄")
+        return redirect(url_for("transactions.list_transactions"))
+    new_date = (request.form.get("date") or "").strip()
+    if not _parse_date(new_date):
+        flash("日期格式不正確，未更動")
+        return redirect(url_for("transactions.list_transactions"))
+    old = txn.date
+    txn.date = new_date
+    db.session.commit()
+    flash("日期已從 {} 改為 {}（提醒：此變動會影響報表相關數據）".format(old or "—", new_date))
     return redirect(url_for("transactions.list_transactions"))

@@ -51,6 +51,17 @@ with app.app_context():
         db.session.rollback()
         print(f"[init] sort_order migration skipped: {e}")
 
+    # 自動補 subsidy_done 欄位（補助清單打勾用；冪等、非破壞、可逆）。失敗不阻擋啟動。
+    try:
+        from sqlalchemy import text
+        db.session.execute(text(
+            "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS subsidy_done BOOLEAN DEFAULT FALSE"
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[init] subsidy_done migration skipped: {e}")
+
 app.register_blueprint(customers_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(quotations_bp)

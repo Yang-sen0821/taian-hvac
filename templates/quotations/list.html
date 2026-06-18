@@ -17,7 +17,7 @@
 <!-- 狀態篩選 Tab -->
 <ul class="nav nav-tabs mb-4">
     <li class="nav-item">
-        <a class="nav-link {% if not status_filter %}active{% endif %}" href="/quotations/">全部</a>
+        <a class="nav-link {% if not status_filter and not subsidy_filter %}active{% endif %}" href="/quotations/">全部</a>
     </li>
     {% for s in statuses %}
     <li class="nav-item">
@@ -25,6 +25,14 @@
            href="/quotations/?status={{ s }}">{{ s }}</a>
     </li>
     {% endfor %}
+    <li class="nav-item ms-3">
+        <a class="nav-link {% if subsidy_filter == 'all' %}active{% endif %}"
+           href="/quotations/?subsidy=all"><i class="bi bi-cash-coin"></i> 補助</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if subsidy_filter == 'undone' %}active{% endif %}"
+           href="/quotations/?subsidy=undone">補助未完成</a>
+    </li>
 </ul>
 
 <!-- 報價單列表 -->
@@ -43,9 +51,17 @@
                         <th>報價單編號</th>
                         <th>日期</th>
                         <th>客戶姓名</th>
+                        {% if subsidy_filter %}
+                        <th>電話</th>
+                        <th>地址</th>
+                        {% endif %}
                         <th>公司抬頭</th>
                         <th class="text-end">含稅總金額</th>
+                        {% if subsidy_filter %}
+                        <th class="text-center">補助完成</th>
+                        {% else %}
                         <th class="text-center">狀態</th>
+                        {% endif %}
                         <th class="text-center">查看</th>
                     </tr>
                 </thead>
@@ -59,12 +75,23 @@
                         <td class="fw-bold">{{ q['報價單編號'] or '—' }}</td>
                         <td>{{ q['報價日期'] or '—' }}</td>
                         <td>{{ q['客戶姓名'] or '—' }}</td>
+                        {% if subsidy_filter %}
+                        <td>{{ q['客戶電話'] or '—' }}</td>
+                        <td class="small">{{ q['客戶地址'] or '—' }}</td>
+                        {% endif %}
                         <td>{{ q['公司抬頭'] or '—' }}</td>
                         <td class="text-end fw-semibold">
                             {% if q['含稅總金額'] %}
                                 NT$ {{ "{:,.0f}".format(q['含稅總金額']|float) }}
                             {% else %}—{% endif %}
                         </td>
+                        {% if subsidy_filter %}
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input subsidy-check"
+                                   data-id="{{ q['id'] }}" {% if q['_subsidy_done'] %}checked{% endif %}>
+                            <span class="subsidy-saved text-success small ms-1" style="display:none;">已儲存</span>
+                        </td>
+                        {% else %}
                         <td class="text-center">
                             {% set s = q['狀態'] or '草稿' %}
                             {% if s == '草稿' %}
@@ -79,6 +106,7 @@
                                 <span class="badge bg-secondary">{{ s }}</span>
                             {% endif %}
                         </td>
+                        {% endif %}
                         <td class="text-center">
                             <a href="/quotations/{{ q['id'] }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-eye"></i>
@@ -126,5 +154,28 @@
     checks.forEach(c => c.addEventListener('change', refresh));
     refresh();
 })();
+
+// 補助清單：checkbox 即時存檔（無儲存鈕）
+document.querySelectorAll('.subsidy-check').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+        const id = this.dataset.id;
+        const saved = this.parentElement.querySelector('.subsidy-saved');
+        const self = this;
+        const body = new URLSearchParams({ done: self.checked ? 'true' : 'false' });
+        fetch('/quotations/' + id + '/subsidy-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body
+        })
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok) {
+                    self.checked = d.subsidy_done;
+                    if (saved) { saved.style.display = 'inline'; setTimeout(() => saved.style.display = 'none', 1500); }
+                } else { self.checked = !self.checked; alert('儲存失敗，請重試'); }
+            })
+            .catch(() => { self.checked = !self.checked; alert('儲存失敗，請重試'); });
+    });
+});
 </script>
 {% endblock %}
