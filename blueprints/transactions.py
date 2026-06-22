@@ -1,4 +1,5 @@
 import datetime
+import math
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from auth import login_required
 from db import db, Transaction
@@ -193,11 +194,11 @@ def delete_transaction(txn_id):
     return redirect(url_for("transactions.list_transactions"))
 
 
-@transactions_bp.route("/<int:txn_id>/edit-date", methods=["POST"])
+@transactions_bp.route("/<int:txn_id>/edit", methods=["POST"])
 @login_required
-def edit_transaction_date(txn_id):
-    """修改既有進出帳紀錄的日期。前端在 modal 內已警告「會影響報表數據」，這裡再次於 flash 提醒。
-    允許任何紀錄（含出貨/進貨自動產生）改日期，因客戶要求既有紀錄可改；不動來源單據日期。"""
+def edit_transaction(txn_id):
+    """修改既有進出帳紀錄的日期／金額／類別。modal 內已警告會影響報表，flash 再次提醒。
+    允許任何紀錄（含出貨/進貨自動產生）修改，因客戶要求既有紀錄可改寫；不動來源單據。"""
     txn = db.session.get(Transaction, txn_id)
     if not txn:
         flash("找不到該筆記錄")
@@ -206,8 +207,19 @@ def edit_transaction_date(txn_id):
     if not _parse_date(new_date):
         flash("日期格式不正確，未更動")
         return redirect(url_for("transactions.list_transactions"))
-    old = txn.date
+    # 金額需顯式驗證：_parse_amount 會把非法值靜默轉 0，故這裡自行 parse 區分（Codex 驗收）
+    raw_amount = (request.form.get("amount") or "").replace(",", "").strip()
+    try:
+        new_amount = float(raw_amount)
+    except (ValueError, TypeError):
+        flash("金額格式不正確，未更動")
+        return redirect(url_for("transactions.list_transactions"))
+    if not math.isfinite(new_amount) or new_amount < 0:
+        flash("金額格式不正確或為負，未更動")   # 擋 nan/inf/負數（Codex 驗收）
+        return redirect(url_for("transactions.list_transactions"))
     txn.date = new_date
+    txn.amount = new_amount
+    txn.category = (request.form.get("category") or "").strip()
     db.session.commit()
-    flash("日期已從 {} 改為 {}（提醒：此變動會影響報表相關數據）".format(old or "—", new_date))
+    flash("已更新日期／金額／類別（提醒：影響報表數據；自動產生的紀錄不會同步來源出貨／進貨單據）")
     return redirect(url_for("transactions.list_transactions"))

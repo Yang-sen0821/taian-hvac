@@ -131,7 +131,8 @@
                         </td>
                         <td class="text-center">
                             <button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-edit-date"
-                                    data-id="{{ t.id }}" data-date="{{ t.date or '' }}" title="改日期">
+                                    data-id="{{ t.id }}" data-date="{{ t.date or '' }}"
+                                    data-amount="{{ t.amount or 0 }}" data-category="{{ t.category or '' }}" title="編輯">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             {% if t.ref_type == 'manual' %}
@@ -167,15 +168,19 @@
     <div class="modal-content">
       <form method="POST" id="dateForm">
         <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-pencil"></i> 修改日期</h5>
+          <h5 class="modal-title"><i class="bi bi-pencil"></i> 編輯紀錄</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="alert alert-warning small mb-3">
-            <i class="bi bi-exclamation-triangle"></i> 修改日期會影響報表相關數據，請確認後再儲存。
+            <i class="bi bi-exclamation-triangle"></i> 修改日期／金額／類別會影響報表相關數據；自動產生的紀錄不會同步修改來源出貨／進貨單據。請確認後再儲存。
           </div>
-          <label class="form-label small mb-1">新日期</label>
-          <input type="date" class="form-control" name="date" id="dateInput" required>
+          <label class="form-label small mb-1">日期</label>
+          <input type="date" class="form-control mb-2" name="date" id="dateInput" required>
+          <label class="form-label small mb-1">金額</label>
+          <input type="number" class="form-control mb-2 text-end" name="amount" id="amountInput" min="0" step="1" required>
+          <label class="form-label small mb-1">類別</label>
+          <input type="text" class="form-control" name="category" id="categoryInput" placeholder="例如：服務、工具、保養">
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -186,15 +191,17 @@
   </div>
 </div>
 <script>
-function openDateEdit(id, date){
-    document.getElementById('dateForm').action = '/transactions/' + id + '/edit-date';
+function openTxnEdit(id, date, amount, category){
+    document.getElementById('dateForm').action = '/transactions/' + id + '/edit';
     document.getElementById('dateInput').value = date;
+    document.getElementById('amountInput').value = amount;
+    document.getElementById('categoryInput').value = category;
     new bootstrap.Modal(document.getElementById('dateModal')).show();
 }
-// data-attribute + delegated handler（避免 t.date 直塞 inline JS 造成注入）— Codex 驗收
+// data-attribute + delegated handler（避免值直塞 inline JS 造成注入）— Codex 驗收
 document.querySelectorAll('.btn-edit-date').forEach(function (btn) {
     btn.addEventListener('click', function () {
-        openDateEdit(this.dataset.id, this.dataset.date || '');
+        openTxnEdit(this.dataset.id, this.dataset.date || '', this.dataset.amount || '0', this.dataset.category || '');
     });
 });
 </script>
