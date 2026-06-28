@@ -28,7 +28,7 @@
             width: 210mm;
             min-height: 297mm;
             margin: 0 auto;
-            background: #faf6ec;   /* 白底改米白 */
+            background: #fff;      /* 仿紙本：白底 */
             padding: 14mm 14mm 12mm 14mm;
             position: relative;
         }
@@ -156,25 +156,19 @@
         table.items tbody td.center { text-align: center; }
         table.items tbody td.right { text-align: right; }
 
-        /* ===== 合計區 ===== */
-        .totals {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 12px;
-        }
-        .totals table {
-            border-collapse: collapse;
-            min-width: 240px;
-        }
-        .totals table td {
-            padding: 4px 8px;
-            border: 1px solid #aaa;
+        /* ===== 合計區：整條橫欄、黃底，仿紙本估價單 ===== */
+        table.items tr.sum-row td {
+            background: #f5cc44;                 /* 客戶色票黃 */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            font-weight: 700;
             font-size: 13px;
         }
-        .totals table tr.total-row td {
-            font-weight: 800;
+        table.items tr.sum-row td.sum-label { text-align: left; }
+        table.items tr.sum-row td.sum-amt { text-align: right; }
+        table.items tr.sum-row.grand td {
             font-size: 15px;
-            background: #f5f5f5;
+            font-weight: 800;
         }
 
         /* ===== 合約條款 ===== */
@@ -183,7 +177,7 @@
             border-radius: 4px;
             padding: 8px 12px;
             margin-bottom: 10px;
-            background: #fffdf5;
+            background: #fff;          /* 合約條款改回白底，仿紙本 */
         }
         .contract h4 {
             font-size: 13px;
@@ -292,9 +286,9 @@
             border-radius: 4px;
         }
 
-        /* ===== #7 合約條款黃底（參照桌面 黃.jpg 取色 #F5CC44）===== */
+        /* ===== 合約條款改回白底（仿紙本估價單；原 #F5CC44 黃底取消）===== */
         .contract {
-            background: #f5cc44;
+            background: #fff;
             padding: 8px 12px;
             border-radius: 4px;
         }
@@ -408,33 +402,41 @@
                 <td colspan="5" style="text-align:center; color:#aaa;">（無品項）</td>
             </tr>
             {% endfor %}
-        </tbody>
-    </table>
 
-    <!-- (d) 合計區 -->
-    <div class="totals">
-        <table>
+            <!-- (d) 合計／稅金／總計：整條橫欄黃底，仿紙本估價單 -->
             {% if (q.tax or 0) > 0 %}
-            <tr>
-                <td>合計（未稅）</td>
-                <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}</td>
+            <tr class="sum-row">
+                <td class="sum-label">合計（未稅）</td>
+                <td></td>
+                <td></td>
+                <td class="sum-amt">NT$ {{ '{:,.0f}'.format(q.pretax or 0) }}</td>
+                <td></td>
             </tr>
-            <tr>
-                <td>稅金 5%</td>
-                <td class="right" style="text-align:right;">NT$ {{ '{:,.0f}'.format(q.tax or 0) }}</td>
+            <tr class="sum-row">
+                <td class="sum-label">稅金 5%</td>
+                <td></td>
+                <td></td>
+                <td class="sum-amt">NT$ {{ '{:,.0f}'.format(q.tax or 0) }}</td>
+                <td></td>
             </tr>
-            <tr class="total-row">
-                <td>總計（含稅）</td>
-                <td style="text-align:right; color:#111;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+            <tr class="sum-row grand">
+                <td class="sum-label">總計（含稅）</td>
+                <td></td>
+                <td></td>
+                <td class="sum-amt">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+                <td></td>
             </tr>
             {% else %}
-            <tr class="total-row">
-                <td>總計</td>
-                <td style="text-align:right; color:#111;">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+            <tr class="sum-row grand">
+                <td class="sum-label">總計</td>
+                <td></td>
+                <td></td>
+                <td class="sum-amt">NT$ {{ '{:,.0f}'.format(q.total or 0) }}</td>
+                <td></td>
             </tr>
             {% endif %}
-        </table>
-    </div>
+        </tbody>
+    </table>
 
     <!-- (e) 簡式合約條款 -->
     <div class="contract">

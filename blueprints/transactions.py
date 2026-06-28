@@ -217,9 +217,19 @@ def edit_transaction(txn_id):
     if not math.isfinite(new_amount) or new_amount < 0:
         flash("金額格式不正確或為負，未更動")   # 擋 nan/inf/負數（Codex 驗收）
         return redirect(url_for("transactions.list_transactions"))
+    # 收支類型：只有 manual 手動紀錄可改方向；出貨/進貨自動產生的紀錄方向綁定來源，不可翻轉。
+    # 報表直接依 type 加總，若放任 shipping_order 變支出 / purchase 變收入會造成帳務與來源不一致（Codex 驗收）。
+    new_type = (request.form.get("type") or "").strip()
+    if txn.ref_type == "manual":
+        if new_type not in ("income", "expense"):
+            flash("收支類型不正確，未更動")
+            return redirect(url_for("transactions.list_transactions"))
+        txn.type = new_type
+    elif new_type and new_type != txn.type:
+        flash("自動產生的出貨／進貨紀錄收支方向綁定來源，不可改；其餘欄位已更新")
     txn.date = new_date
     txn.amount = new_amount
     txn.category = (request.form.get("category") or "").strip()
     db.session.commit()
-    flash("已更新日期／金額／類別（提醒：影響報表數據；自動產生的紀錄不會同步來源出貨／進貨單據）")
+    flash("已更新（提醒：影響報表數據；自動產生的紀錄不會同步來源出貨／進貨單據）")
     return redirect(url_for("transactions.list_transactions"))

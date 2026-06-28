@@ -132,7 +132,8 @@
                         <td class="text-center">
                             <button type="button" class="btn btn-sm btn-outline-secondary me-1 btn-edit-date"
                                     data-id="{{ t.id }}" data-date="{{ t.date or '' }}"
-                                    data-amount="{{ t.amount or 0 }}" data-category="{{ t.category or '' }}" title="編輯">
+                                    data-amount="{{ t.amount or 0 }}" data-category="{{ t.category or '' }}"
+                                    data-type="{{ t.type }}" data-manual="{{ 1 if t.ref_type == 'manual' else 0 }}" title="編輯">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             {% if t.ref_type == 'manual' %}
@@ -173,7 +174,15 @@
         </div>
         <div class="modal-body">
           <div class="alert alert-warning small mb-3">
-            <i class="bi bi-exclamation-triangle"></i> 修改日期／金額／類別會影響報表相關數據；自動產生的紀錄不會同步修改來源出貨／進貨單據。請確認後再儲存。
+            <i class="bi bi-exclamation-triangle"></i> 修改收支類型／日期／金額／類別會影響報表相關數據；自動產生的紀錄不會同步修改來源出貨／進貨單據。請確認後再儲存。
+          </div>
+          <label class="form-label small mb-1">收支類型</label>
+          <select class="form-select mb-1" name="type" id="typeInput" required>
+            <option value="income">收入（進帳）</option>
+            <option value="expense">支出（出帳）</option>
+          </select>
+          <div id="typeLockNote" class="form-text text-muted small mb-2" style="display:none;">
+            此為出貨／進貨自動產生的紀錄，收支方向綁定來源，不可更改。
           </div>
           <label class="form-label small mb-1">日期</label>
           <input type="date" class="form-control mb-2" name="date" id="dateInput" required>
@@ -191,17 +200,23 @@
   </div>
 </div>
 <script>
-function openTxnEdit(id, date, amount, category){
+function openTxnEdit(id, date, amount, category, type, manual){
     document.getElementById('dateForm').action = '/transactions/' + id + '/edit';
     document.getElementById('dateInput').value = date;
     document.getElementById('amountInput').value = amount;
     document.getElementById('categoryInput').value = category;
+    var typeSel = document.getElementById('typeInput');
+    typeSel.value = (type === 'expense') ? 'expense' : 'income';
+    // 只有 manual 手動紀錄可改方向；出貨/進貨自動紀錄鎖定（disabled 不送出，後端亦擋）
+    var isManual = (manual === '1' || manual === 1);
+    typeSel.disabled = !isManual;
+    document.getElementById('typeLockNote').style.display = isManual ? 'none' : 'block';
     new bootstrap.Modal(document.getElementById('dateModal')).show();
 }
 // data-attribute + delegated handler（避免值直塞 inline JS 造成注入）— Codex 驗收
 document.querySelectorAll('.btn-edit-date').forEach(function (btn) {
     btn.addEventListener('click', function () {
-        openTxnEdit(this.dataset.id, this.dataset.date || '', this.dataset.amount || '0', this.dataset.category || '');
+        openTxnEdit(this.dataset.id, this.dataset.date || '', this.dataset.amount || '0', this.dataset.category || '', this.dataset.type || 'income', this.dataset.manual || '0');
     });
 });
 </script>
