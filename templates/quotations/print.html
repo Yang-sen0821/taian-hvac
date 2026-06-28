@@ -35,10 +35,12 @@
 
         /* ===== 抬頭（聯絡資訊置左直向、公司名置中、單號日期置右；flex 三欄不重疊） ===== */
         .header {
+            position: relative;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: flex-start;
             gap: 10px;
+            min-height: 84px;        /* 容納右上絕對定位聯絡區，避免溢出壓到下方單號列 */
             border-bottom: 2px solid #222;
             padding-bottom: 8px;
             margin-bottom: 10px;
@@ -79,6 +81,35 @@
             line-height: 1.6;
             color: #777;
             white-space: nowrap;
+        }
+        /* 聯絡資訊（彩色品牌圖示）絕對定位右上角，標題維持整紙置中，仿紙本估價單 */
+        .header-contact {
+            position: absolute;
+            top: 0;
+            right: 0;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #222;
+        }
+        .header-contact .ct-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .header-contact .ct-ico { display: inline-flex; flex: 0 0 auto; }
+        .header-contact .ct-ico svg {
+            display: block;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        /* 報價單號 / 日期細列 */
+        .meta-line {
+            text-align: right;
+            font-size: 11px;
+            color: #777;
+            margin: -4px 0 10px;
         }
 
         /* ===== 客戶資訊 ===== */
@@ -298,24 +329,29 @@
 
 <div class="page">
 
-    <!-- (a) 抬頭：聯絡資訊+證照置左直向、公司名置中、單號日期置右 -->
+    <!-- (a) 抬頭：公司名置中、聯絡資訊（彩色品牌圖示）置右上，仿紙本估價單 -->
     <div class="header">
-        <div class="header-left">
-            <div><i class="bi bi-telephone-fill"></i> 0984-190-152</div>
-            <div><i class="bi bi-chat-dots-fill"></i> LINE：0984190152</div>
-            <div><i class="bi bi-facebook"></i> 泰安電器水電行</div>
-            <div><i class="bi bi-instagram"></i> taian_tien.chi.hanh</div>
-            <div>國家冷凍空調丙級技術士證 001-044724 號</div>
-        </div>
         <div class="header-center">
             <h1>{{ q.company or '泰安電器水電行' }}</h1>
             <p class="subtitle">估　價　單</p>
         </div>
-        <div class="header-right">
-            <div>報價單號：{{ q.quote_number }}</div>
-            <div>日期：{{ roc_date or q.quote_date }}</div>
+        <div class="header-contact">
+            <div class="ct-row">
+                <span class="ct-ico"><svg viewBox="0 0 24 24" width="15" height="15"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="#e8453c"/><rect x="7.6" y="4" width="8.8" height="14" rx="0.6" fill="#fff"/><circle cx="12" cy="20" r="1" fill="#fff"/></svg></span>0984-190-152
+            </div>
+            <div class="ct-row">
+                <span class="ct-ico"><svg viewBox="0 0 24 24" width="16" height="16"><rect width="24" height="24" rx="6" fill="#06C755"/><text x="12" y="15.5" font-size="7.5" font-weight="700" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">LINE</text></svg></span>0984190152
+            </div>
+            <div class="ct-row">
+                <span class="ct-ico"><svg viewBox="0 0 24 24" width="16" height="16"><rect width="24" height="24" rx="6" fill="#1877F2"/><path d="M14.7 8.3h-1.4c-.4 0-.7.3-.7.8v1.6h2.1l-.3 2.1h-1.8V20h-2.2v-6.2H8.6v-2.1h1.7V9.4c0-1.8 1.1-2.8 2.7-2.8.8 0 1.5.06 1.7.09v1.6z" fill="#fff"/></svg></span>泰安電器水電行
+            </div>
+            <div class="ct-row">
+                <span class="ct-ico"><svg viewBox="0 0 24 24" width="16" height="16"><defs><radialGradient id="igp" cx="0.3" cy="1.05" r="1.3"><stop offset="0" stop-color="#fed576"/><stop offset="0.25" stop-color="#f47133"/><stop offset="0.5" stop-color="#bc3081"/><stop offset="0.8" stop-color="#4c63d2"/></radialGradient></defs><rect width="24" height="24" rx="6" fill="url(#igp)"/><rect x="6" y="6" width="12" height="12" rx="3.6" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="12" r="2.9" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="15.6" cy="8.4" r="0.95" fill="#fff"/></svg></span>taian_tien.chi.hanh
+            </div>
         </div>
     </div>
+    <!-- 報價單號 / 日期細列 -->
+    <div class="meta-line">報價單號：{{ q.quote_number }}　|　日期：{{ roc_date or q.quote_date }}</div>
 
     <!-- (b) 客戶資訊 -->
     <div class="customer-section">
@@ -421,7 +457,8 @@
 
     <!-- (f) 銀行帳戶 -->
     <div class="bank-info">
-        戶名：泰安電器水電行蔣佳良　／　009 彰化銀行（南台南分行）　／　帳號：6440 01 018086 00
+        戶名：泰安電器水電行蔣佳良　／　009 彰化銀行（南台南分行）　／　帳號：6440 01 018086 00<br>
+        國家冷凍空調丙級技術士證 001-044724 號
     </div>
 
     <!-- (g) 簽章區 -->
