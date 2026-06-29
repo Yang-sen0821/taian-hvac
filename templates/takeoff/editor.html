@@ -218,14 +218,16 @@
         lineCap:'round',id:s.id});
       if(mode==='select'){
         // 橡皮擦模式：直接點線段即刪除（不需二次確認；可復原）
-        line.on('click tap',(ev)=>{ if(ev) ev.cancelBubble=true; deleteSegment(s.id); });
+        line.on('click tap',(ev)=>{ if(ev&&ev.evt&&typeof ev.evt.button==='number'&&ev.evt.button!==0) return; if(ev) ev.cancelBubble=true; deleteSegment(s.id); });
         line.on('mouseenter',()=>{cont.style.cursor='pointer';});
         line.on('mouseleave',()=>{cont.style.cursor='';});
       }
       drawLayer.add(line);
     });
-    // 節點
+    // 節點：只畫「有線段用到」或「正在畫(cur)」的，避免孤立點殘留在畫面
+    const usedNodes=new Set(); data.segments.forEach(s=>{usedNodes.add(s.a);usedNodes.add(s.b);}); cur.forEach(id=>usedNodes.add(id));
     data.nodes.forEach(n=>{
+      if(!usedNodes.has(n.id)) return;
       drawLayer.add(new Konva.Circle({x:n.x,y:n.y,radius:3.5/stage.scaleX(),fill:'#222',listening:false}));
     });
     // 目前繪線預覽端點
@@ -277,6 +279,8 @@
   });
 
   stage.on('click tap', async (e)=>{
+    // 只接受左鍵：中鍵(平移)/右鍵不可放點或刪線；觸控無 button 屬性照常
+    if(e.evt && typeof e.evt.button==='number' && e.evt.button!==0) return;
     if(mode==='pan') return;
     const pt=imgPoint(); if(!pt) return;
     if(mode==='calibrate'){
@@ -296,8 +300,8 @@
       let target=null;
       if(near.length>=2){ target=await showPicker(e.evt.clientX||e.evt.changedTouches?.[0]?.clientX, e.evt.clientY||e.evt.changedTouches?.[0]?.clientY, near); }
       else if(near.length===1){ target=near[0]; }
+      snapshot();   // 在任何 mutation 之前存檔，undo 才能完整回到這次點擊前
       if(!target){ target={id:uid('n'),x:pt.x,y:pt.y}; data.nodes.push(target); }
-      snapshot();
       if(cur.length){ const prev=cur[cur.length-1]; if(prev!==target.id){ data.segments.push({id:uid('s'),type:activeType,a:prev,b:target.id}); } }
       cur.push(target.id);
       markDirty(); redraw();
@@ -305,8 +309,9 @@
     }
     // select（橡皮擦）模式：刪除由線段自身的 click 處理，點空白不做事
   });
-  stage.on('dblclick dbltap',()=>{ if(mode==='draw'){ cur=[]; redraw(); } });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ cur=[]; calibPts=[]; redraw(); } });
+  function endPolyline(){ cur=[]; pruneOrphans(); redraw(); }   // 結束線段：清掉只點一下沒接成線的孤立節點
+  stage.on('dblclick dbltap',()=>{ if(mode==='draw'){ endPolyline(); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ calibPts=[]; endPolyline(); } });
 
   // ---- 模式切換 ----
   function setMode(m){
@@ -318,12 +323,12 @@
   }
   document.querySelectorAll('.mode-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
   document.getElementById('calibBtn').addEventListener('click',()=>setMode('calibrate'));
-  document.getElementById('endLineBtn').addEventListener('click',()=>{cur=[];redraw();});
+  document.getElementById('endLineBtn').addEventListener('click',endPolyline);
   document.getElementById('undoBtn').addEventListener('click',()=>{
     if(!undoStack.length)return; const prev=JSON.parse(undoStack.pop());
     data.nodes=prev.nodes;data.segments=prev.segments;data.pipe_types=prev.pipe_types;calib_px=prev.calib_px;calib_real_mm=prev.calib_real_mm;
     if(!data.pipe_types.find(t=>t.id===activeType))activeType=data.pipe_types[0]?.id||null;
-    cur=[];updateCalibInfo();renderTypes();markDirty();redraw();
+    cur=[];pruneOrphans();updateCalibInfo();renderTypes();markDirty();redraw();   // 復原後清孤立節點，避免殘點
   });
 
   // ---- 校準資訊 ----
@@ -347,7 +352,7 @@
       const editBtn=document.createElement('button'); editBtn.type='button'; editBtn.className='btn btn-sm btn-link p-0 text-secondary'; editBtn.title='改名'; editBtn.innerHTML='<i class="bi bi-pencil"></i>';
       const delBtn=document.createElement('button'); delBtn.type='button'; delBtn.className='btn btn-sm btn-link p-0 text-danger'; delBtn.title='刪除'; delBtn.innerHTML='<i class="bi bi-x-lg"></i>';
       row.append(colorIn,label,editBtn,delBtn);
-      const selectThis=()=>{ if(activeType!==t.id){ activeType=t.id; cur=[]; renderTypes(); redraw(); } };  // 換管材自動斷線(cur=[])
+      const selectThis=()=>{ if(activeType!==t.id){ activeType=t.id; cur=[]; pruneOrphans(); renderTypes(); redraw(); } };  // 換管材自動斷線(cur=[])並清孤立點
       row.addEventListener('click',e=>{ if(colorIn.contains(e.target)||editBtn.contains(e.target)||delBtn.contains(e.target))return; selectThis(); });
       colorIn.addEventListener('click',e=>e.stopPropagation());
       colorIn.addEventListener('input',()=>{snapshot();t.color=hexColor(colorIn.value);markDirty();redraw();});
@@ -367,7 +372,7 @@
     snapshot();
     const palette=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b','#6d4c41'];
     const t={id:uid('t'),name:'新管材',color:palette[data.pipe_types.length%palette.length]};
-    data.pipe_types.push(t); activeType=t.id; cur=[]; markDirty(); renderTypes(); redraw();   // 新增即選用並斷線
+    data.pipe_types.push(t); activeType=t.id; cur=[]; pruneOrphans(); markDirty(); renderTypes(); redraw();   // 新增即選用、斷線並清孤立點
   });
 
   // ---- 儲存 ----
