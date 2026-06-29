@@ -369,7 +369,8 @@ def to_quote(pid):
 
     # 組裝群組：每種管材一列（公尺）、每種轉接頭一列（個）
     def _build_group(seq):
-        g = QuotationGroup(seq=seq, title=f"管材估算（{p.name}）", note="由管材估算工具自動帶入")
+        # 不設群組備註：避免「由管材估算工具自動帶入」這類內部字樣印到列印/合約版（森哥 2026-06-29）
+        g = QuotationGroup(seq=seq, title=f"管材估算（{p.name}）", note="")
         ii = 0
         for t in summary["types"]:
             g.items.append(QuotationItem(
