@@ -31,12 +31,12 @@
             <div class="card-body py-2">
                 <div class="fw-bold small mb-1">模式</div>
                 <div class="btn-group btn-group-sm w-100 mb-2" role="group">
-                    <button class="btn btn-outline-secondary mode-btn active" data-mode="pan" title="移動/縮放"><i class="bi bi-arrows-move"></i></button>
+                    <button class="btn btn-outline-secondary mode-btn active" data-mode="pan" title="瀏覽（中鍵拖曳移動、滾輪縮放）"><i class="bi bi-arrows-move"></i></button>
                     <button class="btn btn-outline-secondary mode-btn" data-mode="calibrate" title="校準比例"><i class="bi bi-rulers"></i></button>
                     <button class="btn btn-outline-secondary mode-btn" data-mode="draw" title="畫管線"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-outline-secondary mode-btn" data-mode="select" title="選取/刪除線段"><i class="bi bi-eraser"></i></button>
+                    <button class="btn btn-outline-secondary mode-btn" data-mode="select" title="橡皮擦（點線段即刪除）"><i class="bi bi-eraser"></i></button>
                 </div>
-                <div id="modeHint" class="form-text">移動：拖曳平移、滾輪縮放。</div>
+                <div id="modeHint" class="form-text">移動畫面：按住滑鼠中鍵拖曳；縮放：滾輪上下（任何模式皆可）。</div>
             </div>
         </div>
 
@@ -63,8 +63,8 @@
             <div class="card-body py-2">
                 <div class="fw-bold small mb-1">繪圖</div>
                 <button id="endLineBtn" class="btn btn-outline-secondary btn-sm w-100 mb-1"><i class="bi bi-stop-circle"></i> 結束目前線段</button>
-                <button id="delSegBtn" class="btn btn-outline-danger btn-sm w-100 mb-1" disabled><i class="bi bi-trash"></i> 刪除選取線段</button>
                 <button id="undoBtn" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-arrow-counterclockwise"></i> 復原</button>
+                <div class="form-text mt-1">橡皮擦模式：直接點線段即刪除。</div>
             </div>
         </div>
 
@@ -80,7 +80,7 @@
     <div class="col-12 col-lg-9">
         <div id="stageWrap"></div>
         <div id="pickMenu"></div>
-        <div class="form-text mt-1">畫線：選好上方管材→點「畫管線」模式→在圖上依序點出管線轉折點；端點落在既有節點附近會自動接上，多個候選會跳選單。雙擊或按 Esc 結束一條線。</div>
+        <div class="form-text mt-1">畫線：選好上方管材→點「畫管線」模式→在圖上依序點出管線轉折點；端點落在既有節點附近會自動接上，多個候選會跳選單。雙擊或按 Esc 結束一條線。切換管材會自動斷開目前線段、從新點開始。移動畫面用滑鼠中鍵拖曳。</div>
     </div>
 </div>
 
@@ -116,7 +116,6 @@
   let mode='pan', activeType=data.pipe_types[0]?data.pipe_types[0].id:null;
   let cur=[];                 // 目前正在畫的 polyline（node id 陣列）
   let calibPts=[];            // 校準暫存點
-  let selSeg=null;            // 選取的線段 id
   const undoStack=[];
 
   // ---- Konva 初始化 ----
@@ -141,6 +140,23 @@
 
   window.addEventListener('resize',()=>{stage.width(wrap.clientWidth);stage.height(wrap.clientHeight);stage.batchDraw();});
 
+  // ---- 滑鼠中鍵拖曳平移（任何模式皆可；左鍵保留給各模式操作）----
+  let panning=false, panStart=null, posStart=null;
+  const cont=stage.container();
+  cont.addEventListener('mousedown', e=>{
+    if(e.button===1){ e.preventDefault(); panning=true; panStart={x:e.clientX,y:e.clientY}; posStart=stage.position(); cont.style.cursor='grabbing'; }
+  });
+  window.addEventListener('mousemove', e=>{
+    if(panning){
+      if(e.buttons===0){ panning=false; cont.style.cursor=''; return; }   // 視窗外放開中鍵的保險：偵測無按鍵即解除
+      stage.position({x:posStart.x+(e.clientX-panStart.x), y:posStart.y+(e.clientY-panStart.y)}); stage.batchDraw();
+    }
+  });
+  window.addEventListener('mouseup', e=>{ if(e.button===1 && panning){ panning=false; cont.style.cursor=''; } });
+  window.addEventListener('blur', ()=>{ panning=false; cont.style.cursor=''; });
+  // 擋掉中鍵在容器上的預設自動捲動
+  cont.addEventListener('auxclick', e=>{ if(e.button===1) e.preventDefault(); });
+
   // ---- 工具函式 ----
   const nodeById=id=>data.nodes.find(n=>n.id===id);
   const typeById=id=>data.pipe_types.find(t=>t.id===id);
@@ -161,6 +177,7 @@
     const used=new Set(); data.segments.forEach(s=>{used.add(s.a);used.add(s.b);});
     data.nodes=data.nodes.filter(n=>used.has(n.id));
   }
+  function deleteSegment(id){ snapshot(); data.segments=data.segments.filter(s=>s.id!==id); pruneOrphans(); markDirty(); redraw(); }
 
   // ---- 計算（前端顯示用；後端為權威）----
   function scaleMmPerPx(){ return (calib_px>0&&calib_real_mm>0)? calib_real_mm/calib_px : 0; }
@@ -196,10 +213,15 @@
     // 線段
     data.segments.forEach(s=>{
       const a=nodeById(s.a),b=nodeById(s.b),t=typeById(s.type); if(!a||!b)return;
-      const line=new Konva.Line({points:[a.x,a.y,b.x,b.y],stroke:(t?t.color:'#666'),
-        strokeWidth:(selSeg===s.id?5:3)/stage.scaleX(),hitStrokeWidth:12/stage.scaleX(),
+      const line=new Konva.Line({points:[a.x,a.y,b.x,b.y],stroke:hexColor(t?t.color:'#666'),
+        strokeWidth:3/stage.scaleX(),hitStrokeWidth:14/stage.scaleX(),
         lineCap:'round',id:s.id});
-      if(mode==='select'){ line.on('click tap',()=>{selSeg=s.id;updateDelBtn();redraw();}); }
+      if(mode==='select'){
+        // 橡皮擦模式：直接點線段即刪除（不需二次確認；可復原）
+        line.on('click tap',(ev)=>{ if(ev) ev.cancelBubble=true; deleteSegment(s.id); });
+        line.on('mouseenter',()=>{cont.style.cursor='pointer';});
+        line.on('mouseleave',()=>{cont.style.cursor='';});
+      }
       drawLayer.add(line);
     });
     // 節點
@@ -281,21 +303,16 @@
       markDirty(); redraw();
       return;
     }
-    if(mode==='select'){
-      // 點空白處取消選取（線段自身的 click 已處理選取）
-      if(e.target===stage){ selSeg=null; updateDelBtn(); redraw(); }
-      return;
-    }
+    // select（橡皮擦）模式：刪除由線段自身的 click 處理，點空白不做事
   });
   stage.on('dblclick dbltap',()=>{ if(mode==='draw'){ cur=[]; redraw(); } });
   document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ cur=[]; calibPts=[]; redraw(); } });
 
   // ---- 模式切換 ----
   function setMode(m){
-    mode=m; cur=[]; calibPts=[]; selSeg=null; updateDelBtn();
-    stage.draggable(m==='pan');
+    mode=m; cur=[]; calibPts=[];
     document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
-    const hints={pan:'移動：拖曳平移、滾輪縮放。',calibrate:'校準：在圖上點兩個已知距離的點，再輸入實際公分。',draw:'畫管線：依序點出轉折點；近既有節點會自動吸附，多候選跳選單。雙擊/Esc 結束。',select:'選取：點線段選取後可刪除。'};
+    const hints={pan:'移動畫面：按住滑鼠中鍵拖曳；縮放：滾輪上下。',calibrate:'校準：點兩個已知距離的點，再輸入實際公分。',draw:'畫管線：依序點轉折點；近節點自動吸附、多候選跳選單；換管材自動斷線。雙擊/Esc 結束。',select:'橡皮擦：直接點線段即刪除（可復原）。'};
     document.getElementById('modeHint').textContent=hints[m]||'';
     redraw();
   }
@@ -306,11 +323,7 @@
     if(!undoStack.length)return; const prev=JSON.parse(undoStack.pop());
     data.nodes=prev.nodes;data.segments=prev.segments;data.pipe_types=prev.pipe_types;calib_px=prev.calib_px;calib_real_mm=prev.calib_real_mm;
     if(!data.pipe_types.find(t=>t.id===activeType))activeType=data.pipe_types[0]?.id||null;
-    cur=[];selSeg=null;updateDelBtn();updateCalibInfo();renderTypes();markDirty();redraw();
-  });
-  function updateDelBtn(){ document.getElementById('delSegBtn').disabled=!selSeg; }
-  document.getElementById('delSegBtn').addEventListener('click',()=>{
-    if(!selSeg)return; snapshot(); data.segments=data.segments.filter(s=>s.id!==selSeg); selSeg=null; pruneOrphans(); updateDelBtn(); markDirty(); redraw();
+    cur=[];updateCalibInfo();renderTypes();markDirty();redraw();
   });
 
   // ---- 校準資訊 ----
@@ -324,25 +337,27 @@
   function renderTypes(){
     const box=document.getElementById('typeList'); box.innerHTML='';
     data.pipe_types.forEach(t=>{
+      // 整列(尤其名稱標籤)為大選取區，點一下＝選為畫線管材；改名走鉛筆、改色走色塊（與選取分離，避免不好按）
       const row=document.createElement('div'); row.className='tk-type-row d-flex align-items-center gap-2 mb-1'+(t.id===activeType?' active':'');
-      // 以 DOM 建構並用 property 設值（非 innerHTML 拼字串），避免管材名/顏色造成 XSS
-      const colorIn=document.createElement('input'); colorIn.type='color'; colorIn.title='顏色';
-      colorIn.style.cssText='width:26px;height:24px;padding:0;border:0;background:none'; colorIn.value=hexColor(t.color);
-      const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.className='form-control form-control-sm';
-      nameIn.style.height='26px'; nameIn.value=(t.name==null?'':String(t.name));
-      const delBtn=document.createElement('button'); delBtn.className='btn btn-sm btn-outline-danger py-0'; delBtn.title='刪除';
-      delBtn.innerHTML='<i class="bi bi-x"></i>';
-      row.append(colorIn,nameIn,delBtn);
-      row.addEventListener('click',e=>{ if(e.target===colorIn||e.target===nameIn||delBtn.contains(e.target))return; activeType=t.id; renderTypes(); });
-      colorIn.addEventListener('input',()=>{snapshot();t.color=colorIn.value;markDirty();redraw();});
+      row.style.cursor='pointer';
+      const colorIn=document.createElement('input'); colorIn.type='color'; colorIn.title='改顏色';
+      colorIn.style.cssText='width:24px;height:22px;padding:0;border:0;background:none;flex:0 0 auto'; colorIn.value=hexColor(t.color);
+      const label=document.createElement('span'); label.className='flex-grow-1'; label.style.cssText='font-size:13px;user-select:none';
+      label.textContent=((t.name==null?'':String(t.name))||'（未命名）');
+      const editBtn=document.createElement('button'); editBtn.type='button'; editBtn.className='btn btn-sm btn-link p-0 text-secondary'; editBtn.title='改名'; editBtn.innerHTML='<i class="bi bi-pencil"></i>';
+      const delBtn=document.createElement('button'); delBtn.type='button'; delBtn.className='btn btn-sm btn-link p-0 text-danger'; delBtn.title='刪除'; delBtn.innerHTML='<i class="bi bi-x-lg"></i>';
+      row.append(colorIn,label,editBtn,delBtn);
+      const selectThis=()=>{ if(activeType!==t.id){ activeType=t.id; cur=[]; renderTypes(); redraw(); } };  // 換管材自動斷線(cur=[])
+      row.addEventListener('click',e=>{ if(colorIn.contains(e.target)||editBtn.contains(e.target)||delBtn.contains(e.target))return; selectThis(); });
       colorIn.addEventListener('click',e=>e.stopPropagation());
-      nameIn.addEventListener('change',()=>{snapshot();t.name=nameIn.value.trim()||t.name;markDirty();redraw();});
+      colorIn.addEventListener('input',()=>{snapshot();t.color=hexColor(colorIn.value);markDirty();redraw();});
+      editBtn.addEventListener('click',e=>{ e.stopPropagation(); const nn=prompt('管材名稱：',t.name||''); if(nn!==null){ snapshot(); t.name=nn.trim()||t.name; markDirty(); renderTypes(); redraw(); } });
       delBtn.addEventListener('click',e=>{
         e.stopPropagation();
         const used=data.segments.some(s=>s.type===t.id);
         if(used && !confirm('此管材已有線段，刪除會一併刪除這些線段。確定？'))return;
         snapshot(); data.segments=data.segments.filter(s=>s.type!==t.id); data.pipe_types=data.pipe_types.filter(x=>x.id!==t.id);
-        if(activeType===t.id)activeType=data.pipe_types[0]?.id||null;
+        if(activeType===t.id){ activeType=data.pipe_types[0]?.id||null; cur=[]; }
         pruneOrphans(); markDirty(); renderTypes(); redraw();
       });
       box.appendChild(row);
@@ -352,7 +367,7 @@
     snapshot();
     const palette=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b','#6d4c41'];
     const t={id:uid('t'),name:'新管材',color:palette[data.pipe_types.length%palette.length]};
-    data.pipe_types.push(t); activeType=t.id; markDirty(); renderTypes();
+    data.pipe_types.push(t); activeType=t.id; cur=[]; markDirty(); renderTypes(); redraw();   // 新增即選用並斷線
   });
 
   // ---- 儲存 ----
