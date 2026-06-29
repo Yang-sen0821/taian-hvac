@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }} — 管材估算編輯{% endblock %}
+
+{% block content %}
+<style>
+  #stageWrap{background:#f3f3f3;border:1px solid #ccc;border-radius:6px;overflow:hidden;height:74vh;position:relative;}
+  .tk-panel .swatch{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:middle;border:1px solid #999;}
+  .tk-type-row{cursor:pointer;border:1px solid transparent;border-radius:6px;padding:4px 6px;}
+  .tk-type-row.active{border-color:#0d6efd;background:#eef4ff;}
+  #pickMenu{position:absolute;z-index:50;background:#fff;border:1px solid #aaa;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);display:none;min-width:180px;}
+  #pickMenu button{display:block;width:100%;text-align:left;border:0;background:#fff;padding:6px 10px;font-size:13px;}
+  #pickMenu button:hover{background:#eef4ff;}
+  .mode-btn.active{background:#0d6efd;color:#fff;}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <a href="/takeoff/{{ s.project_id }}" class="text-decoration-none small text-muted"><i class="bi bi-arrow-left"></i> 回專案</a>
+        <h4 class="fw-bold mb-0 mt-1">{{ s.name }}</h4>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span id="saveStatus" class="text-muted small"></span>
+        <button id="saveBtn" class="btn btn-success btn-sm"><i class="bi bi-save"></i> 儲存</button>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- 左：工具面板 -->
+    <div class="col-12 col-lg-3 tk-panel">
+        <div class="card shadow-sm mb-2">
+            <div class="card-body py-2">
+                <div class="fw-bold small mb-1">模式</div>
+                <div class="btn-group btn-group-sm w-100 mb-2" role="group">
+                    <button class="btn btn-outline-secondary mode-btn active" data-mode="pan" title="移動/縮放"><i class="bi bi-arrows-move"></i></button>
+                    <button class="btn btn-outline-secondary mode-btn" data-mode="calibrate" title="校準比例"><i class="bi bi-rulers"></i></button>
+                    <button class="btn btn-outline-secondary mode-btn" data-mode="draw" title="畫管線"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-secondary mode-btn" data-mode="select" title="選取/刪除線段"><i class="bi bi-eraser"></i></button>
+                </div>
+                <div id="modeHint" class="form-text">移動：拖曳平移、滾輪縮放。</div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-2">
+            <div class="card-body py-2">
+                <div class="fw-bold small mb-1"><i class="bi bi-rulers"></i> 比例校準</div>
+                <div id="calibInfo" class="small text-muted">尚未校準</div>
+                <button id="calibBtn" class="btn btn-outline-primary btn-sm mt-1 w-100"><i class="bi bi-rulers"></i> 開始校準（點兩點）</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-2">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div class="fw-bold small"><i class="bi bi-palette"></i> 管材</div>
+                    <button id="addTypeBtn" class="btn btn-outline-secondary btn-sm py-0"><i class="bi bi-plus-lg"></i></button>
+                </div>
+                <div id="typeList"></div>
+                <div class="form-text">點一列＝選為畫線的管材。</div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-2">
+            <div class="card-body py-2">
+                <div class="fw-bold small mb-1">繪圖</div>
+                <button id="endLineBtn" class="btn btn-outline-secondary btn-sm w-100 mb-1"><i class="bi bi-stop-circle"></i> 結束目前線段</button>
+                <button id="delSegBtn" class="btn btn-outline-danger btn-sm w-100 mb-1" disabled><i class="bi bi-trash"></i> 刪除選取線段</button>
+                <button id="undoBtn" class="btn btn-outline-secondary btn-sm w-100"><i class="bi bi-arrow-counterclockwise"></i> 復原</button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body py-2">
+                <div class="fw-bold small mb-1"><i class="bi bi-table"></i> 本圖統計</div>
+                <div id="lengthTable" class="small">—</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右：畫布 -->
+    <div class="col-12 col-lg-9">
+        <div id="stageWrap"></div>
+        <div id="pickMenu"></div>
+        <div class="form-text mt-1">畫線：選好上方管材→點「畫管線」模式→在圖上依序點出管線轉折點；端點落在既有節點附近會自動接上，多個候選會跳選單。雙擊或按 Esc 結束一條線。</div>
+    </div>
+</div>
+
+<script id="tkData" type="application/json">{{ data|tojson }}</script>
+<script>window.TK_SHEET={ id:{{ s.id }}, img_w:{{ s.img_w or 0 }}, img_h:{{ s.img_h or 0 }}, calib_px:{{ s.calib_px or 0 }}, calib_real_mm:{{ s.calib_real_mm or 0 }}, image_url:"/takeoff/sheet/{{ s.id }}/image" };</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/konva.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  const SH = window.TK_SHEET;
+  const SNAP_PX = 14;            // 螢幕像素吸附容差
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const hexColor = c => (/^#[0-9a-fA-F]{6}$/.test(String(c))) ? String(c) : '#666666';
+  let data = JSON.parse(document.getElementById('tkData').textContent || '{}');
+  data.pipe_types = data.pipe_types || [];
+  data.nodes = data.nodes || [];
+  data.segments = data.segments || [];
+  let calib_px = SH.calib_px || 0, calib_real_mm = SH.calib_real_mm || 0;
+
+  // ---- id 產生器（沿用既有最大號）----
+  let idc = 0;
+  (data.nodes.concat(data.segments, data.pipe_types)).forEach(o=>{
+    const m=/(\d+)$/.exec(o.id||''); if(m) idc=Math.max(idc, parseInt(m[1]));
+  });
+  const uid = pfx => pfx+(++idc);
+  if(!data.pipe_types.length){
+    data.pipe_types=[{id:uid('t'),name:'4分管',color:'#e53935'},{id:uid('t'),name:'6分管',color:'#1e88e5'}];
+  }
+
+  let mode='pan', activeType=data.pipe_types[0]?data.pipe_types[0].id:null;
+  let cur=[];                 // 目前正在畫的 polyline（node id 陣列）
+  let calibPts=[];            // 校準暫存點
+  let selSeg=null;            // 選取的線段 id
+  const undoStack=[];
+
+  // ---- Konva 初始化 ----
+  const wrap=document.getElementById('stageWrap');
+  const stage=new Konva.Stage({container:'stageWrap', width:wrap.clientWidth, height:wrap.clientHeight});
+  const bgLayer=new Konva.Layer(), drawLayer=new Konva.Layer();
+  stage.add(bgLayer); stage.add(drawLayer);
+
+  const imgObj=new Image();
+  imgObj.crossOrigin='anonymous';
+  imgObj.onload=function(){
+    const kimg=new Konva.Image({image:imgObj,x:0,y:0,width:imgObj.naturalWidth,height:imgObj.naturalHeight,listening:false});
+    bgLayer.add(kimg); bgLayer.draw();
+    // 初始縮放置中
+    const sc=Math.min(stage.width()/imgObj.naturalWidth, stage.height()/imgObj.naturalHeight)*0.98;
+    stage.scale({x:sc,y:sc});
+    stage.position({x:(stage.width()-imgObj.naturalWidth*sc)/2, y:(stage.height()-imgObj.naturalHeight*sc)/2});
+    stage.batchDraw();
+    redraw();
+  };
+  imgObj.src=SH.image_url;
+
+  window.addEventListener('resize',()=>{stage.width(wrap.clientWidth);stage.height(wrap.clientHeight);stage.batchDraw();});
+
+  // ---- 工具函式 ----
+  const nodeById=id=>data.nodes.find(n=>n.id===id);
+  const typeById=id=>data.pipe_types.find(t=>t.id===id);
+  function imgPoint(){ return stage.getRelativePointerPosition(); }
+  function tolImg(){ return SNAP_PX/stage.scaleX(); }
+  function nodesNear(pt){
+    const tol=tolImg();
+    return data.nodes.map(n=>({n,d:Math.hypot(n.x-pt.x,n.y-pt.y)}))
+      .filter(o=>o.d<=tol).sort((a,b)=>a.d-b.d).map(o=>o.n);
+  }
+  function typesAtNode(id){
+    const set=new Set();
+    data.segments.forEach(s=>{ if(s.a===id||s.b===id){const t=typeById(s.type); if(t) set.add(t.name);} });
+    return [...set];
+  }
+  function snapshot(){ undoStack.push(JSON.stringify({nodes:data.nodes,segments:data.segments,pipe_types:data.pipe_types,calib_px,calib_real_mm})); if(undoStack.length>50)undoStack.shift(); }
+  function pruneOrphans(){
+    const used=new Set(); data.segments.forEach(s=>{used.add(s.a);used.add(s.b);});
+    data.nodes=data.nodes.filter(n=>used.has(n.id));
+  }
+
+  // ---- 計算（前端顯示用；後端為權威）----
+  function scaleMmPerPx(){ return (calib_px>0&&calib_real_mm>0)? calib_real_mm/calib_px : 0; }
+  function computeSummary(){
+    const sc=scaleMmPerPx(); const byName={}, color={};
+    data.segments.forEach(s=>{
+      const a=nodeById(s.a),b=nodeById(s.b),t=typeById(s.type); if(!a||!b||!t)return;
+      color[t.name]=t.color;
+      const px=Math.hypot(a.x-b.x,a.y-b.y);
+      byName[t.name]=(byName[t.name]||0)+(sc>0? px*sc/1000:0);
+    });
+    // 轉接頭
+    const incident={};
+    data.segments.forEach(s=>{const t=typeById(s.type);if(!t)return;[s.a,s.b].forEach(id=>{(incident[id]=incident[id]||new Set()).add(t.name);});});
+    const trans={};
+    Object.values(incident).forEach(set=>{const a=[...set].sort();if(a.length>=2){for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++){const k=a[i]+'轉'+a[j];trans[k]=(trans[k]||0)+1;}}});
+    return {byName,color,trans,sc};
+  }
+  function renderTable(){
+    const {byName,color,trans,sc}=computeSummary();
+    let h='';
+    if(!sc) h+='<div class="text-warning mb-1">未校準，長度先不計</div>';
+    const names=Object.keys(byName).sort();
+    if(!names.length && !Object.keys(trans).length){ h+='尚未畫線'; }
+    names.forEach(n=>{ h+=`<div><span class="swatch" style="background:${hexColor(color[n])}"></span> ${esc(n)}：<b>${(byName[n]||0).toFixed(2)}</b> m</div>`; });
+    Object.keys(trans).sort().forEach(k=>{ h+=`<div class="text-muted">${esc(k)}轉接頭：${trans[k]} 個</div>`; });
+    document.getElementById('lengthTable').innerHTML=h;
+  }
+
+  // ---- 重繪 draw layer（從資料模型重建）----
+  function redraw(){
+    drawLayer.destroyChildren();
+    // 線段
+    data.segments.forEach(s=>{
+      const a=nodeById(s.a),b=nodeById(s.b),t=typeById(s.type); if(!a||!b)return;
+      const line=new Konva.Line({points:[a.x,a.y,b.x,b.y],stroke:(t?t.color:'#666'),
+        strokeWidth:(selSeg===s.id?5:3)/stage.scaleX(),hitStrokeWidth:12/stage.scaleX(),
+        lineCap:'round',id:s.id});
+      if(mode==='select'){ line.on('click tap',()=>{selSeg=s.id;updateDelBtn();redraw();}); }
+      drawLayer.add(line);
+    });
+    // 節點
+    data.nodes.forEach(n=>{
+      drawLayer.add(new Konva.Circle({x:n.x,y:n.y,radius:3.5/stage.scaleX(),fill:'#222',listening:false}));
+    });
+    // 目前繪線預覽端點
+    cur.forEach(id=>{const n=nodeById(id);if(n)drawLayer.add(new Konva.Circle({x:n.x,y:n.y,radius:5/stage.scaleX(),stroke:'#0d6efd',strokeWidth:2/stage.scaleX(),listening:false}));});
+    // 轉接頭標記
+    const incident={};
+    data.segments.forEach(s=>{const t=typeById(s.type);if(!t)return;[s.a,s.b].forEach(id=>{(incident[id]=incident[id]||new Set()).add(t.name);});});
+    Object.keys(incident).forEach(id=>{
+      if(incident[id].size>=2){const n=nodeById(id);if(!n)return;
+        drawLayer.add(new Konva.Circle({x:n.x,y:n.y,radius:6/stage.scaleX(),fill:'#fff',stroke:'#ff9800',strokeWidth:3/stage.scaleX(),listening:false}));
+        drawLayer.add(new Konva.Text({x:n.x+8/stage.scaleX(),y:n.y-8/stage.scaleX(),text:[...incident[id]].sort().join('轉'),fontSize:12/stage.scaleX(),fill:'#e65100',listening:false}));
+      }
+    });
+    // 校準暫存點
+    calibPts.forEach(p=>drawLayer.add(new Konva.Circle({x:p.x,y:p.y,radius:5/stage.scaleX(),fill:'#d6249f',listening:false})));
+    if(calibPts.length===2)drawLayer.add(new Konva.Line({points:[calibPts[0].x,calibPts[0].y,calibPts[1].x,calibPts[1].y],stroke:'#d6249f',strokeWidth:2/stage.scaleX(),dash:[6,4],listening:false}));
+    drawLayer.batchDraw();
+    renderTable();
+  }
+
+  // ---- 候選選單（並排選接）----
+  const pickMenu=document.getElementById('pickMenu');
+  function showPicker(clientX,clientY,candidates){
+    return new Promise(resolve=>{
+      pickMenu.innerHTML='';
+      const wrapRect=document.getElementById('stageWrap').getBoundingClientRect();
+      candidates.forEach(n=>{
+        const tps=typesAtNode(n.id); const b=document.createElement('button');
+        b.appendChild(document.createTextNode('接到節點 '));
+        const sm=document.createElement('small'); sm.className='text-muted';
+        sm.textContent='('+(tps.join('、')||'空')+')';   // textContent：管材名安全
+        b.appendChild(sm);
+        b.onclick=()=>{hide();resolve(n);}; pickMenu.appendChild(b);
+      });
+      const nb=document.createElement('button'); nb.innerHTML='＋ 建立新節點'; nb.onclick=()=>{hide();resolve(null);}; pickMenu.appendChild(nb);
+      pickMenu.style.left=(clientX-wrapRect.left)+'px'; pickMenu.style.top=(clientY-wrapRect.top)+'px'; pickMenu.style.display='block';
+      function hide(){pickMenu.style.display='none';}
+    });
+  }
+
+  // ---- 互動 ----
+  let isWheelBound=false;
+  stage.on('wheel',e=>{
+    e.evt.preventDefault();
+    const old=stage.scaleX(); const pointer=stage.getPointerPosition();
+    const to={x:(pointer.x-stage.x())/old,y:(pointer.y-stage.y())/old};
+    const ns=e.evt.deltaY>0? old*0.9: old*1.1; stage.scale({x:ns,y:ns});
+    stage.position({x:pointer.x-to.x*ns,y:pointer.y-to.y*ns}); stage.batchDraw(); redraw();
+  });
+
+  stage.on('click tap', async (e)=>{
+    if(mode==='pan') return;
+    const pt=imgPoint(); if(!pt) return;
+    if(mode==='calibrate'){
+      calibPts.push({x:pt.x,y:pt.y}); redraw();
+      if(calibPts.length===2){
+        const px=Math.hypot(calibPts[0].x-calibPts[1].x,calibPts[0].y-calibPts[1].y);
+        const cm=prompt('這兩點的實際長度是多少「公分」？');
+        const v=parseFloat((cm||'').replace(/,/g,''));
+        if(isFinite(v)&&v>0&&px>0){ snapshot(); calib_px=px; calib_real_mm=v*10; updateCalibInfo(); markDirty(); }
+        calibPts=[]; setMode('pan'); redraw();
+      }
+      return;
+    }
+    if(mode==='draw'){
+      if(!activeType){ alert('請先在左側選一種管材'); return; }
+      const near=nodesNear(pt);
+      let target=null;
+      if(near.length>=2){ target=await showPicker(e.evt.clientX||e.evt.changedTouches?.[0]?.clientX, e.evt.clientY||e.evt.changedTouches?.[0]?.clientY, near); }
+      else if(near.length===1){ target=near[0]; }
+      if(!target){ target={id:uid('n'),x:pt.x,y:pt.y}; data.nodes.push(target); }
+      snapshot();
+      if(cur.length){ const prev=cur[cur.length-1]; if(prev!==target.id){ data.segments.push({id:uid('s'),type:activeType,a:prev,b:target.id}); } }
+      cur.push(target.id);
+      markDirty(); redraw();
+      return;
+    }
+    if(mode==='select'){
+      // 點空白處取消選取（線段自身的 click 已處理選取）
+      if(e.target===stage){ selSeg=null; updateDelBtn(); redraw(); }
+      return;
+    }
+  });
+  stage.on('dblclick dbltap',()=>{ if(mode==='draw'){ cur=[]; redraw(); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ cur=[]; calibPts=[]; redraw(); } });
+
+  // ---- 模式切換 ----
+  function setMode(m){
+    mode=m; cur=[]; calibPts=[]; selSeg=null; updateDelBtn();
+    stage.draggable(m==='pan');
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+    const hints={pan:'移動：拖曳平移、滾輪縮放。',calibrate:'校準：在圖上點兩個已知距離的點，再輸入實際公分。',draw:'畫管線：依序點出轉折點；近既有節點會自動吸附，多候選跳選單。雙擊/Esc 結束。',select:'選取：點線段選取後可刪除。'};
+    document.getElementById('modeHint').textContent=hints[m]||'';
+    redraw();
+  }
+  document.querySelectorAll('.mode-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+  document.getElementById('calibBtn').addEventListener('click',()=>setMode('calibrate'));
+  document.getElementById('endLineBtn').addEventListener('click',()=>{cur=[];redraw();});
+  document.getElementById('undoBtn').addEventListener('click',()=>{
+    if(!undoStack.length)return; const prev=JSON.parse(undoStack.pop());
+    data.nodes=prev.nodes;data.segments=prev.segments;data.pipe_types=prev.pipe_types;calib_px=prev.calib_px;calib_real_mm=prev.calib_real_mm;
+    if(!data.pipe_types.find(t=>t.id===activeType))activeType=data.pipe_types[0]?.id||null;
+    cur=[];selSeg=null;updateDelBtn();updateCalibInfo();renderTypes();markDirty();redraw();
+  });
+  function updateDelBtn(){ document.getElementById('delSegBtn').disabled=!selSeg; }
+  document.getElementById('delSegBtn').addEventListener('click',()=>{
+    if(!selSeg)return; snapshot(); data.segments=data.segments.filter(s=>s.id!==selSeg); selSeg=null; pruneOrphans(); updateDelBtn(); markDirty(); redraw();
+  });
+
+  // ---- 校準資訊 ----
+  function updateCalibInfo(){
+    const el=document.getElementById('calibInfo');
+    if(calib_px>0&&calib_real_mm>0){ el.innerHTML=`比例：${(calib_real_mm/10).toFixed(1)} cm / ${calib_px.toFixed(1)} px<br>＝ ${(calib_real_mm/calib_px).toFixed(3)} mm/px`; el.classList.remove('text-muted'); }
+    else { el.textContent='尚未校準'; el.classList.add('text-muted'); }
+  }
+
+  // ---- 管材 CRUD ----
+  function renderTypes(){
+    const box=document.getElementById('typeList'); box.innerHTML='';
+    data.pipe_types.forEach(t=>{
+      const row=document.createElement('div'); row.className='tk-type-row d-flex align-items-center gap-2 mb-1'+(t.id===activeType?' active':'');
+      // 以 DOM 建構並用 property 設值（非 innerHTML 拼字串），避免管材名/顏色造成 XSS
+      const colorIn=document.createElement('input'); colorIn.type='color'; colorIn.title='顏色';
+      colorIn.style.cssText='width:26px;height:24px;padding:0;border:0;background:none'; colorIn.value=hexColor(t.color);
+      const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.className='form-control form-control-sm';
+      nameIn.style.height='26px'; nameIn.value=(t.name==null?'':String(t.name));
+      const delBtn=document.createElement('button'); delBtn.className='btn btn-sm btn-outline-danger py-0'; delBtn.title='刪除';
+      delBtn.innerHTML='<i class="bi bi-x"></i>';
+      row.append(colorIn,nameIn,delBtn);
+      row.addEventListener('click',e=>{ if(e.target===colorIn||e.target===nameIn||delBtn.contains(e.target))return; activeType=t.id; renderTypes(); });
+      colorIn.addEventListener('input',()=>{snapshot();t.color=colorIn.value;markDirty();redraw();});
+      colorIn.addEventListener('click',e=>e.stopPropagation());
+      nameIn.addEventListener('change',()=>{snapshot();t.name=nameIn.value.trim()||t.name;markDirty();redraw();});
+      delBtn.addEventListener('click',e=>{
+        e.stopPropagation();
+        const used=data.segments.some(s=>s.type===t.id);
+        if(used && !confirm('此管材已有線段，刪除會一併刪除這些線段。確定？'))return;
+        snapshot(); data.segments=data.segments.filter(s=>s.type!==t.id); data.pipe_types=data.pipe_types.filter(x=>x.id!==t.id);
+        if(activeType===t.id)activeType=data.pipe_types[0]?.id||null;
+        pruneOrphans(); markDirty(); renderTypes(); redraw();
+      });
+      box.appendChild(row);
+    });
+  }
+  document.getElementById('addTypeBtn').addEventListener('click',()=>{
+    snapshot();
+    const palette=['#e53935','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b','#6d4c41'];
+    const t={id:uid('t'),name:'新管材',color:palette[data.pipe_types.length%palette.length]};
+    data.pipe_types.push(t); activeType=t.id; markDirty(); renderTypes();
+  });
+
+  // ---- 儲存 ----
+  let dirty=false, saveTimer=null;
+  function markDirty(){ dirty=true; setSaveStatus('未儲存…'); clearTimeout(saveTimer); saveTimer=setTimeout(save,1500); }
+  function setSaveStatus(t){ document.getElementById('saveStatus').textContent=t; }
+  async function save(){
+    clearTimeout(saveTimer);
+    setSaveStatus('儲存中…');
+    try{
+      const body={calib_px,calib_real_mm,data:{schema_version:1,pipe_types:data.pipe_types,nodes:data.nodes,segments:data.segments}};
+      const r=await fetch('/takeoff/sheet/'+SH.id+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.error||'儲存失敗');
+      dirty=false; setSaveStatus('已儲存 '+new Date().toLocaleTimeString());
+    }catch(e){ setSaveStatus('儲存失敗：'+e.message); }
+  }
+  document.getElementById('saveBtn').addEventListener('click',save);
+  window.addEventListener('beforeunload',e=>{ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+
+  // ---- 啟動 ----
+  updateCalibInfo(); renderTypes(); setMode('pan');
+})();
+</script>
+{% endblock %}

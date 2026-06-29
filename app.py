@@ -10,11 +10,13 @@ from blueprints.quotations import quotations_bp, sign_bp
 from blueprints.shipping import shipping_bp
 from blueprints.purchases import purchases_bp
 from blueprints.transactions import transactions_bp, compute_dashboard
+from blueprints.takeoff import takeoff_bp
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:H4m*zp.fX5ZkCyT@db.dosmfcgztoybstrydxkr.supabase.co:5432/postgres')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['MAX_CONTENT_LENGTH'] = 12 * 1024 * 1024   # 上傳上限 12MB（管材估算圖面）
 db.init_app(app)
 
 # 啟動時確保資料表存在：新增表（quotation_groups/quotation_items/shipping_items）為非破壞性，
@@ -72,6 +74,7 @@ app.register_blueprint(sign_bp)      # 公開簽名頁 /sign/<token>（免登入
 app.register_blueprint(shipping_bp)
 app.register_blueprint(purchases_bp)
 app.register_blueprint(transactions_bp)
+app.register_blueprint(takeoff_bp)
 
 @app.route("/")
 def index():

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}管材估算 — 泰安冷氣{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold mb-0"><i class="bi bi-rulers"></i> 管材估算</h3>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjModal">
+        <i class="bi bi-plus-lg"></i> 新增估算專案
+    </button>
+</div>
+
+<div class="card shadow-sm">
+    {% if rows %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>專案名稱</th><th>客戶</th><th class="text-center">圖面數</th>
+                    <th>建立時間</th><th class="text-end">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="fw-semibold">{{ r.p.name }}</td>
+                    <td>{{ r.p.customer_name or '—' }}</td>
+                    <td class="text-center">{{ r.sheet_count }}</td>
+                    <td class="text-muted small">{{ r.p.created_at.strftime('%Y-%m-%d %H:%M') if r.p.created_at else '—' }}</td>
+                    <td class="text-end">
+                        <a href="/takeoff/{{ r.p.id }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-in-right"></i> 開啟
+                        </a>
+                        <form method="POST" action="/takeoff/{{ r.p.id }}/delete" class="d-inline"
+                              onsubmit='return confirm({{ ("確定刪除整個估算專案「" ~ r.p.name ~ "」？所有圖面與管線資料都會刪除，無法復原。")|tojson }});'>
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-rulers display-4 d-block mb-3"></i>
+        <p class="mb-3">還沒有估算專案。上傳 CAD 圖面（JPG / PDF）開始估算管材。</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newProjModal">
+            <i class="bi bi-plus-lg"></i> 新增第一個估算專案
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="newProjModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="/takeoff/new">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-lg"></i> 新增估算專案</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label small mb-1">專案名稱</label>
+          <input type="text" class="form-control mb-2" name="name" placeholder="例如：志鋼3F辦公室-AC" required>
+          <label class="form-label small mb-1">客戶（選填）</label>
+          <input type="text" class="form-control mb-2" name="customer_name" placeholder="客戶名稱">
+          <label class="form-label small mb-1">備註（選填）</label>
+          <input type="text" class="form-control" name="note">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="submit" class="btn btn-primary">建立</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

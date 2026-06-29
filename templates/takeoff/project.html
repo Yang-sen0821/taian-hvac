@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }} — 管材估算{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="/takeoff/" class="text-decoration-none small text-muted"><i class="bi bi-arrow-left"></i> 估算專案列表</a>
+        <h3 class="fw-bold mb-0 mt-1"><i class="bi bi-rulers"></i> {{ p.name }}</h3>
+        <div class="text-muted small">客戶：{{ p.customer_name or '—' }}{% if p.note %}　|　{{ p.note }}{% endif %}</div>
+    </div>
+</div>
+
+<!-- 上傳區 -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h6 class="fw-bold mb-2"><i class="bi bi-upload"></i> 上傳圖面（JPG / PNG / PDF；PDF 會逐頁加入）</h6>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <input type="file" id="fileInput" class="form-control" style="max-width:420px"
+                   accept="image/png,image/jpeg,application/pdf" multiple>
+            <button id="uploadBtn" class="btn btn-primary"><i class="bi bi-cloud-upload"></i> 上傳</button>
+            <span id="uploadStatus" class="text-muted small"></span>
+        </div>
+        <div class="form-text">單檔上限 12MB。CAD 多以 PDF 匯出；上傳後在每張圖內「校準比例 → 分色畫管線」。</div>
+    </div>
+</div>
+
+<!-- 圖面清單 -->
+<h6 class="fw-bold mb-2">圖面（{{ sheets|length }}）</h6>
+{% if sheets %}
+<div class="row g-3 mb-4">
+    {% for item in sheets %}
+    {% set s = item.s %}
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100 shadow-sm">
+            <a href="/takeoff/sheet/{{ s.id }}">
+                <img src="/takeoff/sheet/{{ s.id }}/image" class="card-img-top"
+                     style="height:180px;object-fit:contain;background:#f3f3f3" alt="{{ s.name }}">
+            </a>
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="fw-semibold">{{ s.name }}</div>
+                    {% if item.summary.calibrated %}
+                        <span class="badge bg-success">已校準</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">未校準</span>
+                    {% endif %}
+                </div>
+                {% if item.summary.types %}
+                <div class="small mt-1">
+                    {% for t in item.summary.types %}
+                    <div><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:{{ t.color }}"></span>
+                        {{ t.name }}：<b>{{ '%.2f'|format(t.meters) }}</b> m</div>
+                    {% endfor %}
+                    {% for tr in item.summary.transitions %}
+                    <div class="text-muted">{{ tr.pair }}轉接頭：{{ tr.count }} 個</div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-muted small mt-1">尚未畫線</div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-between py-2">
+                <a href="/takeoff/sheet/{{ s.id }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> 編輯</a>
+                <form method="POST" action="/takeoff/sheet/{{ s.id }}/delete"
+                      onsubmit='return confirm({{ ("刪除圖面「" ~ s.name ~ "」？")|tojson }});'>
+                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-muted mb-4">尚無圖面，請先上傳。</div>
+{% endif %}
+
+<!-- 專案管線總表 -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-light fw-bold"><i class="bi bi-table"></i> 管線加總總表（全部圖面）</div>
+    <div class="card-body">
+        {% if summary.any_uncalibrated %}
+        <div class="alert alert-warning small py-2"><i class="bi bi-exclamation-triangle"></i> 有圖面尚未校準，未校準圖面長度以 0 計入。</div>
+        {% endif %}
+        {% if summary.types or summary.transitions %}
+        <table class="table table-bordered mb-0" style="max-width:560px">
+            <thead class="table-light"><tr><th>管材 / 轉接頭</th><th class="text-end">數量</th></tr></thead>
+            <tbody>
+                {% for t in summary.types %}
+                <tr>
+                    <td><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:{{ t.color }}"></span>
+                        {{ t.name }}</td>
+                    <td class="text-end fw-semibold">{{ '%.2f'|format(t.meters) }} m</td>
+                </tr>
+                {% endfor %}
+                {% for tr in summary.transitions %}
+                <tr><td class="text-muted">{{ tr.pair }}轉接頭</td><td class="text-end">{{ tr.count }} 個</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-muted">尚無管線資料。請進入圖面校準並畫線。</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 帶入報價單 -->
+<div class="card shadow-sm mb-5">
+    <div class="card-header bg-light fw-bold"><i class="bi bi-receipt"></i> 帶入報價單</div>
+    <div class="card-body">
+        {% if linked_quote %}
+        <div class="small text-success mb-2"><i class="bi bi-link-45deg"></i> 已關聯報價單：{{ linked_quote.quote_number }}</div>
+        {% endif %}
+        <form method="POST" action="/takeoff/{{ p.id }}/to-quote" class="row g-2 align-items-center"
+              onsubmit="return confirm('將把上方總表的管材公尺數與轉接頭數帶入報價單（單價待你填）。確定？');">
+            <div class="col-auto">
+                <select class="form-select" name="mode" id="modeSel" onchange="document.getElementById('quoteSelWrap').style.display=(this.value==='existing')?'block':'none';">
+                    <option value="new">建立新報價單</option>
+                    <option value="existing">加到指定報價單</option>
+                </select>
+            </div>
+            <div class="col-auto" id="quoteSelWrap" style="display:none">
+                <select class="form-select" name="quotation_id">
+                    {% for q in quotes %}
+                    <option value="{{ q.id }}">{{ q.quote_number }}（{{ q.customer_name or '—' }}）</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> 帶入</button>
+            </div>
+        </form>
+        <div class="form-text">帶入的是後端重算後的總表；單價請進報價單後再填。</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/pdf.min.js"></script>
+<script>
+(function(){
+    const PID = {{ p.id }};
+    const fileInput = document.getElementById('fileInput');
+    const btn = document.getElementById('uploadBtn');
+    const status = document.getElementById('uploadStatus');
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/vendor/pdf.worker.min.js';
+    }
+
+    function setStatus(t){ status.textContent = t; }
+
+    async function uploadBlob(blob, name, pageIndex, w, h, filename){
+        const fd = new FormData();
+        fd.append('file', blob, (filename||'sheet')+'.png');
+        fd.append('name', name);
+        fd.append('page_index', pageIndex);
+        fd.append('img_w', w); fd.append('img_h', h);
+        fd.append('source_filename', filename||'');
+        const r = await fetch('/takeoff/'+PID+'/sheet/add', {method:'POST', body:fd});
+        const j = await r.json();
+        if(!j.ok) throw new Error(j.error||'上傳失敗');
+        return j;
+    }
+
+    async function handleImage(file, baseIndex){
+        const url = URL.createObjectURL(file);
+        const img = await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url;});
+        const c = document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+        c.getContext('2d').drawImage(img,0,0);
+        const blob = await new Promise(res=>c.toBlob(res,'image/png'));
+        URL.revokeObjectURL(url);
+        await uploadBlob(blob, file.name, baseIndex, c.width, c.height, file.name);
+        return 1;
+    }
+
+    async function handlePdf(file, baseIndex){
+        if(!window.pdfjsLib){ throw new Error('PDF 元件未載入（請檢查網路）'); }
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+        const n = pdf.numPages;
+        for(let pg=1; pg<=n; pg++){
+            setStatus(`渲染 ${file.name} 第 ${pg}/${n} 頁…`);
+            const page = await pdf.getPage(pg);
+            // 以較高解析度渲染（scale 2）讓校準與畫線更精準
+            const viewport = page.getViewport({scale:2});
+            const c = document.createElement('canvas'); c.width=viewport.width; c.height=viewport.height;
+            await page.render({canvasContext:c.getContext('2d'), viewport}).promise;
+            const blob = await new Promise(res=>c.toBlob(res,'image/png'));
+            await uploadBlob(blob, `${file.name} p${pg}`, baseIndex+pg-1, c.width, c.height, file.name);
+        }
+        return n;
+    }
+
+    btn.addEventListener('click', async ()=>{
+        const files = Array.from(fileInput.files||[]);
+        if(!files.length){ setStatus('請先選擇檔案'); return; }
+        btn.disabled = true;
+        try{
+            let idx = {{ sheets|length }};
+            for(const f of files){
+                setStatus('處理 '+f.name+'…');
+                if(f.type==='application/pdf' || f.name.toLowerCase().endsWith('.pdf')){
+                    idx += await handlePdf(f, idx);
+                } else {
+                    idx += await handleImage(f, idx);
+                }
+            }
+            setStatus('完成，重新整理…');
+            location.reload();
+        }catch(e){
+            setStatus('錯誤：'+e.message);
+            btn.disabled = false;
+        }
+    });
+})();
+</script>
+{% endblock %}

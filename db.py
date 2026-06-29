@@ -494,3 +494,72 @@ class QuoteSignature(db.Model):
     def is_expired(self):
         return (self.status == "pending" and self.expires_at is not None
                 and datetime.utcnow() > self.expires_at)
+
+
+# ======================================================================
+# 管材估算工具（takeoff）：專案 / 圖面 / 圖檔
+# 新增表，create_all 自動建立、對既有 Supabase 零破壞。
+# 圖檔存 DB（bytea 獨立表）避開 Render ephemeral 檔案系統重啟遺失；
+# 並與圖面 metadata 分表，避免專案/總表列表查詢時連大圖一起載出（Codex 設計審查）。
+# ======================================================================
+
+
+class TakeoffProject(db.Model):
+    """管材估算專案（一份資料＝一個案子，可含多張圖面）"""
+    __tablename__ = "takeoff_projects"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(200), default="")
+    customer_name = db.Column(db.String(100), default="")
+    note = db.Column(db.Text, default="")
+    quotation_id = db.Column(db.Integer, default=0)     # 關聯報價單 id（0=未關聯；不設 FK 避免跨表刪除耦合）
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    sheets = db.relationship(
+        "TakeoffSheet",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="TakeoffSheet.page_index",
+    )
+
+
+class TakeoffSheet(db.Model):
+    """單一圖面：底圖 metadata + 校準 + 管線幾何 JSON。圖檔本身存 takeoff_images。"""
+    __tablename__ = "takeoff_sheets"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("takeoff_projects.id"), nullable=False)
+    page_index = db.Column(db.Integer, default=0)          # 在專案內排序（PDF 多頁＝多 sheet）
+    name = db.Column(db.String(200), default="")
+    source_filename = db.Column(db.String(300), default="")
+    img_w = db.Column(db.Integer, default=0)               # 底圖原始寬（image px）
+    img_h = db.Column(db.Integer, default=0)               # 底圖原始高（image px）
+    calib_px = db.Column(db.Float, default=0)              # 校準：兩點像素距離（image px）
+    calib_real_mm = db.Column(db.Float, default=0)         # 校準：兩點實際長度（mm）
+    data_json = db.Column(db.Text, default="")            # pipe_types[]/nodes[]/segments[] JSON
+    schema_version = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = db.relationship("TakeoffProject", back_populates="sheets")
+
+    def scale_mm_per_px(self):
+        """每 image px 對應的實際 mm；未校準回 0。"""
+        if self.calib_px and self.calib_px > 0 and self.calib_real_mm and self.calib_real_mm > 0:
+            return self.calib_real_mm / self.calib_px
+        return 0.0
+
+
+class TakeoffImage(db.Model):
+    """圖檔位元組（bytea）。kind=page 渲染頁面圖（綁 sheet）；kind=original 原始上傳檔（綁專案，供向量重用）。
+    刻意不設 FK，刪除時由端點手動清理，避免刪除順序的 FK 衝突（比照 Transaction.ref_id 風格）。"""
+    __tablename__ = "takeoff_images"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, index=True, default=0)
+    sheet_id = db.Column(db.Integer, index=True, default=0)   # 0=非頁面圖（原始檔）
+    kind = db.Column(db.String(20), default="page")           # page | original
+    mime = db.Column(db.String(80), default="image/png")
+    data = db.Column(db.LargeBinary)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
