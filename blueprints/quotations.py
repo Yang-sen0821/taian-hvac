@@ -282,8 +282,28 @@ def print_quote(quote_id):
     roc_date = _to_roc_date(q.quote_date)
     sig = _sig_for(quote_id)
     return render_template("quotations/print.html", q=q, roc_date=roc_date,
+                           pdf_filename=_pdf_filename(q),
                            stamp_uri=_stamp_data_uri(q.company),
                            sig=sig, sig_date=_tw_time(sig.signed_at) if sig else "")
+
+
+def _pdf_filename(q):
+    """PDF 預設檔名：「YYYYMMDD-客戶名估價單-公司」。
+    瀏覽器列印/儲存 PDF 時取文件 <title> 為預設檔名，故列印頁標題設為此字串。
+    例：20260629-蔡小姐（小兒子）估價單-泰安電器水電行
+    """
+    import re
+    s = str(q.quote_date or "").strip().replace("/", "-")
+    parts = s.split("-")
+    try:
+        ymd = f"{int(parts[0]):04d}{int(parts[1]):02d}{int(parts[2]):02d}"
+    except (ValueError, IndexError):
+        ymd = ""
+    name = (q.customer_name or "").strip() or "客戶"
+    company = (q.company or "泰安電器水電行").strip()
+    base = f"{(ymd + '-') if ymd else ''}{name}估價單-{company}"
+    # 移除檔名非法字元（保留中文與全形括號）
+    return re.sub(r'[\\/:*?"<>|\r\n\t]', '', base)
 
 
 def _to_roc_date(date_str):
