@@ -62,6 +62,12 @@
                         <a href="/inventory/ac/{{ item.id }}/edit" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i> 編輯
                         </a>
+                        <form method="post" action="/inventory/ac/{{ item.id }}/delete" class="d-inline"
+                              onsubmit='return confirm({{ ("確定刪除「" ~ item["廠牌型號規格"] ~ "」？")|tojson }});'>
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> 刪除
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}
@@ -118,6 +124,12 @@
                 <a href="/inventory/ac/{{ item.id }}/edit" class="btn btn-sm btn-outline-primary w-100 mt-3">
                     <i class="bi bi-pencil"></i> 編輯
                 </a>
+                <form method="post" action="/inventory/ac/{{ item.id }}/delete" class="mt-2"
+                      onsubmit='return confirm({{ ("確定刪除「" ~ item["廠牌型號規格"] ~ "」？")|tojson }});'>
+                    <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                        <i class="bi bi-trash"></i> 刪除
+                    </button>
+                </form>
             </div>
         </div>
         {% endfor %}

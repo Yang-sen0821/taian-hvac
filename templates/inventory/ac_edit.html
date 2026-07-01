@@ -9,14 +9,15 @@
 
         <div class="card">
             <div class="card-body">
-                <!-- 品名顯示（唯讀） -->
-                <div class="mb-4 p-3 bg-light rounded">
-                    <p class="text-muted small mb-1">品名</p>
-                    <h3 class="mb-0">{{ item.spec }}</h3>
-                </div>
-
                 <!-- 編輯表單 -->
                 <form method="post" action="/inventory/ac/{{ item.id }}/edit">
+                    <!-- 品名（廠牌型號規格）可編輯 -->
+                    <div class="mb-3">
+                        <label for="spec" class="form-label">品名（廠牌型號規格）<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="spec" name="spec" value="{{ item.spec }}" required>
+                        <small class="form-text text-muted">冷氣品項名稱／規格</small>
+                    </div>
+
                     <!-- 實際庫存數量 -->
                     <div class="mb-3">
                         <label for="qty" class="form-label">庫存數量 <span class="text-danger">*</span></label>
@@ -54,6 +55,15 @@
                             <i class="bi bi-x-circle"></i> 取消
                         </a>
                     </div>
+                </form>
+
+                <hr class="my-4">
+                <!-- 刪除區塊 -->
+                <form method="post" action="/inventory/ac/{{ item.id }}/delete"
+                      onsubmit='return confirm({{ ("確定刪除「" ~ item.spec ~ "」？此操作無法復原。")|tojson }});'>
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i> 刪除此品項
+                    </button>
                 </form>
             </div>
         </div>

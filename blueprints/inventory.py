@@ -74,12 +74,30 @@ def ac_edit(item_id):
         flash("找不到該庫存品項", "warning")
         return redirect(url_for("inventory.ac_list"))
     if request.method == "POST":
+        new_spec = (request.form.get("spec") or "").strip()
+        if new_spec:
+            item.spec = new_spec          # 允許改名稱（廠牌型號規格）；留空則維持原名
         item.actual_qty = request.form.get("qty", "")
         item.note = request.form.get("note", "")
         _db.session.commit()
         flash(f"✅ 庫存已更新：{item.spec}")
         return redirect(url_for("inventory.ac_list"))
     return render_template("inventory/ac_edit.html", item=item)
+
+@inventory_bp.route("/ac/<int:item_id>/delete", methods=["POST"])
+@login_required
+def ac_delete(item_id):
+    """刪除冷氣庫存品項（比照材料庫存；品項以名稱字串被引用、無 FK 連動）。"""
+    from db import db as _db, ACInventory
+    item = _db.session.get(ACInventory, item_id)
+    if not item:
+        flash("找不到該庫存品項", "warning")
+        return redirect(url_for("inventory.ac_list"))
+    spec = item.spec
+    _db.session.delete(item)
+    _db.session.commit()
+    flash(f"已刪除冷氣品項「{spec}」")
+    return redirect(url_for("inventory.ac_list"))
 
 @inventory_bp.route("/gifts")
 @login_required
